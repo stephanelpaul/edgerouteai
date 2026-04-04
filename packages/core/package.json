@@ -10,7 +10,11 @@
     "./adapters/google": "./src/adapters/google.ts",
     "./adapters/mistral": "./src/adapters/mistral.ts",
     "./adapters/xai": "./src/adapters/xai.ts",
-    "./adapters/registry": "./src/adapters/registry.ts"
+    "./adapters/registry": "./src/adapters/registry.ts",
+    "./router/resolver": "./src/router/resolver.ts",
+    "./router/fallback": "./src/router/fallback.ts",
+    "./streaming/proxy": "./src/streaming/proxy.ts",
+    "./streaming/tee": "./src/streaming/tee.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
