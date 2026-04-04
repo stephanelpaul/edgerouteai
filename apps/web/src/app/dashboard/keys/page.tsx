@@ -11,7 +11,7 @@ interface ApiKey {
 }
 
 export default function KeysPage() {
-  const { apiKey, apiUrl, isAuthenticated } = useAuth()
+  const { apiUrl, isAuthenticated } = useAuth()
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -23,20 +23,19 @@ export default function KeysPage() {
   const [revoking, setRevoking] = useState<string | null>(null)
 
   const loadKeys = useCallback(async () => {
-    if (!apiKey) return
     setLoading(true)
     setError('')
     try {
-      const r = await fetch(`${apiUrl}/api/keys`, { headers: { Authorization: `Bearer ${apiKey}` } })
+      const r = await fetch(`${apiUrl}/api/keys`, { credentials: 'include' })
       const data = await r.json()
-      if (!r.ok) throw new Error(data.error?.message ?? `Error ${r.status}`)
-      setKeys(data.keys ?? [])
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
+      setKeys((data as any).keys ?? [])
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [apiKey, apiUrl])
+  }, [apiUrl])
 
   useEffect(() => {
     if (isAuthenticated) loadKeys()
@@ -44,18 +43,19 @@ export default function KeysPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newKeyName.trim() || !apiKey) return
+    if (!newKeyName.trim()) return
     setCreating(true)
     setCreateError('')
     try {
       const r = await fetch(`${apiUrl}/api/keys`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name: newKeyName.trim() }),
       })
       const data = await r.json()
-      if (!r.ok) throw new Error(data.error?.message ?? `Error ${r.status}`)
-      setNewKeyValue(data.key)
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
+      setNewKeyValue((data as any).key)
       setNewKeyName('')
       setShowForm(false)
       loadKeys()
@@ -67,17 +67,16 @@ export default function KeysPage() {
   }
 
   const handleRevoke = async (id: string) => {
-    if (!apiKey) return
     if (!confirm('Revoke this key? This cannot be undone.')) return
     setRevoking(id)
     try {
       const r = await fetch(`${apiUrl}/api/keys/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${apiKey}` },
+        credentials: 'include',
       })
       if (!r.ok) {
         const data = await r.json()
-        throw new Error(data.error?.message ?? `Error ${r.status}`)
+        throw new Error((data as any).error?.message ?? `Error ${r.status}`)
       }
       setKeys((prev) => prev.filter((k) => k.id !== id))
     } catch (err: any) {
@@ -88,7 +87,7 @@ export default function KeysPage() {
   }
 
   if (!isAuthenticated) {
-    return <p className="text-neutral-500">Please connect your API key from the Overview page.</p>
+    return <p className="text-neutral-500">Please sign in to access this page.</p>
   }
 
   return (
@@ -138,7 +137,7 @@ export default function KeysPage() {
 
       {newKeyValue && (
         <div className="mt-6 rounded-lg border border-green-800 bg-green-950/30 p-6">
-          <p className="font-medium text-green-400">Key created — copy it now, it won't be shown again.</p>
+          <p className="font-medium text-green-400">Key created — copy it now, it won&apos;t be shown again.</p>
           <code className="mt-2 block break-all rounded bg-neutral-900 p-3 text-sm text-green-300">{newKeyValue}</code>
           <button
             onClick={() => setNewKeyValue(null)}

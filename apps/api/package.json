@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@edgerouteai/auth": "workspace:*",
     "@edgerouteai/core": "workspace:*",
     "@edgerouteai/db": "workspace:*",
     "@edgerouteai/shared": "workspace:*",

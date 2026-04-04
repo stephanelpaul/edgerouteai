@@ -10,7 +10,7 @@ interface RoutingConfig {
 }
 
 export default function RoutingPage() {
-  const { apiKey, apiUrl, isAuthenticated } = useAuth()
+  const { apiUrl, isAuthenticated } = useAuth()
   const [configs, setConfigs] = useState<RoutingConfig[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -22,20 +22,19 @@ export default function RoutingPage() {
   const [deleting, setDeleting] = useState<string | null>(null)
 
   const loadConfigs = useCallback(async () => {
-    if (!apiKey) return
     setLoading(true)
     setError('')
     try {
-      const r = await fetch(`${apiUrl}/api/routing`, { headers: { Authorization: `Bearer ${apiKey}` } })
+      const r = await fetch(`${apiUrl}/api/routing`, { credentials: 'include' })
       const data = await r.json()
-      if (!r.ok) throw new Error(data.error?.message ?? `Error ${r.status}`)
-      setConfigs(data.configs ?? [])
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
+      setConfigs((data as any).configs ?? [])
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [apiKey, apiUrl])
+  }, [apiUrl])
 
   useEffect(() => {
     if (isAuthenticated) loadConfigs()
@@ -43,7 +42,7 @@ export default function RoutingPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formName.trim() || !formChain.trim() || !apiKey) return
+    if (!formName.trim() || !formChain.trim()) return
     const fallbackChain = formChain.split(',').map((s) => s.trim()).filter(Boolean)
     if (fallbackChain.length < 1) {
       setCreateError('Enter at least one model in the fallback chain.')
@@ -54,11 +53,12 @@ export default function RoutingPage() {
     try {
       const r = await fetch(`${apiUrl}/api/routing`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name: formName.trim(), fallbackChain }),
       })
       const data = await r.json()
-      if (!r.ok) throw new Error(data.error?.message ?? `Error ${r.status}`)
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
       setFormName('')
       setFormChain('')
       setShowForm(false)
@@ -71,17 +71,16 @@ export default function RoutingPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!apiKey) return
     if (!confirm('Delete this routing config?')) return
     setDeleting(id)
     try {
       const r = await fetch(`${apiUrl}/api/routing/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${apiKey}` },
+        credentials: 'include',
       })
       if (!r.ok) {
         const data = await r.json()
-        throw new Error(data.error?.message ?? `Error ${r.status}`)
+        throw new Error((data as any).error?.message ?? `Error ${r.status}`)
       }
       setConfigs((prev) => prev.filter((c) => c.id !== id))
     } catch (err: any) {
@@ -92,7 +91,7 @@ export default function RoutingPage() {
   }
 
   if (!isAuthenticated) {
-    return <p className="text-neutral-500">Please connect your API key from the Overview page.</p>
+    return <p className="text-neutral-500">Please sign in to access this page.</p>
   }
 
   return (

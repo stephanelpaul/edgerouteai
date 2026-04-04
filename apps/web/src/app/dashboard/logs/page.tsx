@@ -16,33 +16,32 @@ interface LogEntry {
 }
 
 export default function LogsPage() {
-  const { apiKey, apiUrl, isAuthenticated } = useAuth()
+  const { apiUrl, isAuthenticated } = useAuth()
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const loadLogs = useCallback(async () => {
-    if (!apiKey) return
     setLoading(true)
     setError('')
     try {
-      const r = await fetch(`${apiUrl}/api/logs`, { headers: { Authorization: `Bearer ${apiKey}` } })
+      const r = await fetch(`${apiUrl}/api/logs`, { credentials: 'include' })
       const data = await r.json()
-      if (!r.ok) throw new Error(data.error?.message ?? `Error ${r.status}`)
-      setLogs(data.logs ?? [])
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
+      setLogs((data as any).logs ?? [])
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [apiKey, apiUrl])
+  }, [apiUrl])
 
   useEffect(() => {
     if (isAuthenticated) loadLogs()
   }, [isAuthenticated, loadLogs])
 
   if (!isAuthenticated) {
-    return <p className="text-neutral-500">Please connect your API key from the Overview page.</p>
+    return <p className="text-neutral-500">Please sign in to access this page.</p>
   }
 
   return (

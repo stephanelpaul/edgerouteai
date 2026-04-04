@@ -2,22 +2,23 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import type { Database } from '@edgerouteai/db'
 
-export function createAuth(db: Database, options?: { baseURL?: string; secret?: string }) {
+export function createAuth(db: Database, options?: { baseURL?: string; secret?: string; trustedOrigins?: string[] }) {
   return betterAuth({
     database: drizzleAdapter(db, { provider: 'sqlite' }),
     baseURL: options?.baseURL,
     secret: options?.secret,
+    trustedOrigins: options?.trustedOrigins,
     emailAndPassword: {
       enabled: true,
     },
-    socialProviders: {
-      github: {
-        clientId: process.env.GITHUB_CLIENT_ID ?? '',
-        clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
+    advanced: {
+      crossSubDomainCookies: {
+        enabled: false,
       },
-      google: {
-        clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+      defaultCookieAttributes: {
+        secure: true,
+        sameSite: 'none',
+        path: '/',
       },
     },
   })

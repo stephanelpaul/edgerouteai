@@ -17,7 +17,7 @@ interface ProviderKey {
 }
 
 export default function ProvidersPage() {
-  const { apiKey, apiUrl, isAuthenticated } = useAuth()
+  const { apiUrl, isAuthenticated } = useAuth()
   const [providerKeys, setProviderKeys] = useState<Record<string, ProviderKey>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -30,15 +30,14 @@ export default function ProvidersPage() {
   const [removing, setRemoving] = useState<string | null>(null)
 
   const loadProviders = useCallback(async () => {
-    if (!apiKey) return
     setLoading(true)
     setError('')
     try {
-      const r = await fetch(`${apiUrl}/api/providers`, { headers: { Authorization: `Bearer ${apiKey}` } })
+      const r = await fetch(`${apiUrl}/api/providers`, { credentials: 'include' })
       const data = await r.json()
-      if (!r.ok) throw new Error(data.error?.message ?? `Error ${r.status}`)
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
       const map: Record<string, ProviderKey> = {}
-      for (const pk of data.keys ?? []) {
+      for (const pk of (data as any).keys ?? []) {
         map[pk.provider] = pk
       }
       setProviderKeys(map)
@@ -47,24 +46,25 @@ export default function ProvidersPage() {
     } finally {
       setLoading(false)
     }
-  }, [apiKey, apiUrl])
+  }, [apiUrl])
 
   useEffect(() => {
     if (isAuthenticated) loadProviders()
   }, [isAuthenticated, loadProviders])
 
   const handleSave = async (provider: string) => {
-    if (!keyInput.trim() || !apiKey) return
+    if (!keyInput.trim()) return
     setSaving(true)
     setSaveError('')
     try {
       const r = await fetch(`${apiUrl}/api/providers/${provider}`, {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ apiKey: keyInput.trim() }),
       })
       const data = await r.json()
-      if (!r.ok) throw new Error(data.error?.message ?? `Error ${r.status}`)
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
       setAddingFor(null)
       setKeyInput('')
       loadProviders()
@@ -76,17 +76,16 @@ export default function ProvidersPage() {
   }
 
   const handleVerify = async (provider: string) => {
-    if (!apiKey) return
     setVerifying(provider)
     try {
       const r = await fetch(`${apiUrl}/api/providers/${provider}/verify`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}` },
+        credentials: 'include',
       })
       const data = await r.json()
-      if (!r.ok) throw new Error(data.error?.message ?? `Error ${r.status}`)
-      setVerifyResults((prev) => ({ ...prev, [provider]: data.valid ?? true }))
-    } catch (err: any) {
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
+      setVerifyResults((prev) => ({ ...prev, [provider]: (data as any).valid ?? true }))
+    } catch {
       setVerifyResults((prev) => ({ ...prev, [provider]: false }))
     } finally {
       setVerifying(null)
@@ -94,17 +93,16 @@ export default function ProvidersPage() {
   }
 
   const handleRemove = async (provider: string) => {
-    if (!apiKey) return
     if (!confirm(`Remove ${provider} key?`)) return
     setRemoving(provider)
     try {
       const r = await fetch(`${apiUrl}/api/providers/${provider}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${apiKey}` },
+        credentials: 'include',
       })
       if (!r.ok) {
         const data = await r.json()
-        throw new Error(data.error?.message ?? `Error ${r.status}`)
+        throw new Error((data as any).error?.message ?? `Error ${r.status}`)
       }
       setProviderKeys((prev) => {
         const next = { ...prev }
@@ -120,7 +118,7 @@ export default function ProvidersPage() {
   }
 
   if (!isAuthenticated) {
-    return <p className="text-neutral-500">Please connect your API key from the Overview page.</p>
+    return <p className="text-neutral-500">Please sign in to access this page.</p>
   }
 
   return (
