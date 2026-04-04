@@ -11,7 +11,7 @@ interface GeminiResponse {
 
 export const googleAdapter: ProviderAdapter = {
   id: 'google',
-  models: ['gemini-2.5-pro-preview-03-25', 'gemini-2.5-flash-preview-04-17'],
+  models: ['gemini-2.5-pro-preview-03-25', 'gemini-2.5-flash-preview-04-17', 'gemini-2.5-flash-lite'],
 
   transformRequest(req: ChatCompletionRequest, apiKey: string): ProviderRequest {
     const systemMessage = req.messages.find((m) => m.role === 'system')

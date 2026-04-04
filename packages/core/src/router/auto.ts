@@ -14,36 +14,46 @@ export interface AutoRouteResult extends ResolvedRoute {
 }
 
 const QUALITY_RANKING = [
+  'anthropic/claude-opus-4-6',
+  'openai/gpt-5.4',
   'anthropic/claude-sonnet-4-6',
-  'openai/gpt-4.1',
+  'openai/gpt-5.2',
   'google/gemini-2.5-pro-preview-03-25',
+  'openai/gpt-5',
   'openai/gpt-4o',
   'xai/grok-4.20',
   'mistral/mistral-large-latest',
 ]
 
 const BALANCED_RANKING = [
-  'openai/gpt-4o',
+  'openai/gpt-5',
   'anthropic/claude-sonnet-4-6',
+  'openai/gpt-4o',
   'google/gemini-2.5-pro-preview-03-25',
   'xai/grok-4.20',
   'mistral/mistral-large-latest',
+  'openai/gpt-5.4-mini',
   'google/gemini-2.5-flash-preview-04-17',
 ]
 
 const BUDGET_RANKING = [
+  'google/gemini-2.5-flash-lite',
   'google/gemini-2.5-flash-preview-04-17',
+  'mistral/mistral-small-latest',
+  'openai/gpt-5.4-mini',
   'anthropic/claude-haiku-4-5',
   'openai/o4-mini',
   'mistral/mistral-medium-latest',
-  'openai/gpt-4o',
 ]
 
 const CODE_RANKING = [
   'anthropic/claude-sonnet-4-6',
+  'openai/gpt-5.4',
+  'openai/gpt-5.2',
   'openai/gpt-4.1',
-  'openai/gpt-4o',
+  'anthropic/claude-opus-4-6',
   'google/gemini-2.5-pro-preview-03-25',
+  'openai/gpt-4o',
   'xai/grok-4.20',
 ]
 
@@ -154,7 +164,7 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
   // Absolute fallback: try any model from any available provider
   for (const provider of availableProviders) {
     const fallbacks: Record<string, string> = {
-      openai: 'openai/gpt-4o',
+      openai: 'openai/gpt-5',
       anthropic: 'anthropic/claude-sonnet-4-6',
       google: 'google/gemini-2.5-flash-preview-04-17',
       mistral: 'mistral/mistral-large-latest',

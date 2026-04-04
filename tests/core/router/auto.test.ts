@@ -44,10 +44,10 @@ describe('autoRoute', () => {
       })
       expect(result).not.toBeNull()
       expect(result!.provider).toBe('anthropic')
-      expect(result!.modelId).toBe('claude-sonnet-4-6')
+      expect(result!.modelId).toBe('claude-opus-4-6')
     })
 
-    it('picks openai gpt-4.1 when anthropic not available (quality tier)', () => {
+    it('picks openai gpt-5.4 when anthropic not available (quality tier)', () => {
       const result = autoRoute({
         messages: [userMsg('Write me a detailed analysis')],
         availableProviders: ['openai'],
@@ -55,7 +55,7 @@ describe('autoRoute', () => {
       })
       expect(result).not.toBeNull()
       expect(result!.provider).toBe('openai')
-      expect(result!.modelId).toBe('gpt-4.1')
+      expect(result!.modelId).toBe('gpt-5.4')
     })
 
     it('includes quality reason in result', () => {
@@ -77,7 +77,7 @@ describe('autoRoute', () => {
       })
       expect(result).not.toBeNull()
       expect(result!.provider).toBe('google')
-      expect(result!.modelId).toBe('gemini-2.5-flash-preview-04-17')
+      expect(result!.modelId).toBe('gemini-2.5-flash-lite')
     })
 
     it('picks claude haiku when google not available (budget tier)', () => {

@@ -3,7 +3,7 @@ import type { ProviderAdapter } from './types.js'
 
 export const openaiAdapter: ProviderAdapter = {
   id: 'openai',
-  models: ['gpt-4o', 'gpt-4.1', 'o3', 'o4-mini'],
+  models: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.2', 'gpt-5', 'gpt-4o', 'gpt-4.1', 'o3', 'o4-mini'],
 
   transformRequest(req: ChatCompletionRequest, apiKey: string): ProviderRequest {
     const body: Record<string, unknown> = {

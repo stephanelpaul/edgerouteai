@@ -3,7 +3,7 @@ import type { ProviderAdapter } from './types.js'
 
 export const mistralAdapter: ProviderAdapter = {
   id: 'mistral',
-  models: ['mistral-large-latest', 'mistral-medium-latest'],
+  models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest'],
 
   transformRequest(req: ChatCompletionRequest, apiKey: string): ProviderRequest {
     const body: Record<string, unknown> = { model: req.model, messages: req.messages, stream: req.stream ?? true }

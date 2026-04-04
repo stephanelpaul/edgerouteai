@@ -11,7 +11,7 @@ interface AnthropicEvent {
 
 export const anthropicAdapter: ProviderAdapter = {
   id: 'anthropic',
-  models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
+  models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-haiku-4-5'],
 
   transformRequest(req: ChatCompletionRequest, apiKey: string): ProviderRequest {
     const systemMessage = req.messages.find((m) => m.role === 'system')
