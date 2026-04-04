@@ -9,8 +9,8 @@ ENVIRONMENT = "development"
 [[d1_databases]]
 binding = "DB"
 database_name = "edgerouteai-db"
-database_id = "placeholder-replace-after-creation"
+database_id = "5e45ce25-8ee8-4f0b-9a27-e51b89473ccd"
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "placeholder-replace-after-creation"
+id = "36cc04fc3de24cc3bc5ef0959943ade8"
