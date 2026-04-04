@@ -15,6 +15,12 @@ interface ModelConfig {
   contextLength: number
 }
 
+const AUTO_OPTIONS: { id: string; label: string }[] = [
+  { id: 'auto', label: 'Auto (Balanced)' },
+  { id: 'auto/quality', label: 'Auto (Quality)' },
+  { id: 'auto/budget', label: 'Auto (Budget)' },
+]
+
 const MODELS: Record<string, ModelConfig> = {
   // OpenAI
   'openai/gpt-4o': { id: 'gpt-4o', provider: 'openai', name: 'GPT-4o', contextLength: 128000 },
@@ -222,6 +228,13 @@ export default function ChatPage() {
           disabled={isStreaming}
           className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none disabled:opacity-50 cursor-pointer"
         >
+          <optgroup label="Auto">
+            {AUTO_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.label}
+              </option>
+            ))}
+          </optgroup>
           {Object.entries(MODEL_GROUPS).map(([provider, keys]) => (
             <optgroup key={provider} label={capitalizeProvider(provider)}>
               {keys.map((key) => (

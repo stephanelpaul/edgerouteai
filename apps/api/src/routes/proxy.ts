@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
-import { resolveRoute, buildFallbackChain, proxyRequest } from '@edgerouteai/core'
+import { resolveRoute, buildFallbackChain, proxyRequest, autoRoute } from '@edgerouteai/core'
 import { createDb, providerKeys, routingConfigs, requestLogs } from '@edgerouteai/db'
 import {
   ModelNotFoundError,
@@ -21,8 +21,42 @@ proxy.post('/v1/chat/completions', async (c) => {
   const body = await c.req.json<ChatCompletionRequest>()
   const db = createDb(c.env.DB)
 
-  const primaryRoute = resolveRoute(body.model)
-  if (!primaryRoute) throw new ModelNotFoundError(body.model)
+  let resolvedModel = body.model
+  let autoReason: string | undefined
+
+  // Handle auto-routing
+  if (body.model === 'auto' || body.model.startsWith('auto/')) {
+    const tierStr = body.model === 'auto' ? undefined : body.model.split('/')[1]
+    const tier = (tierStr === 'quality' || tierStr === 'balanced' || tierStr === 'budget')
+      ? tierStr
+      : undefined
+
+    const userProviderKeys = await db
+      .select({ provider: providerKeys.provider })
+      .from(providerKeys)
+      .where(eq(providerKeys.userId, userId))
+    const availableProviders = userProviderKeys.map((pk) => pk.provider)
+
+    if (availableProviders.length === 0) {
+      throw new ProviderKeyMissingError('any')
+    }
+
+    const autoResult = autoRoute({
+      messages: body.messages,
+      availableProviders,
+      tier,
+    })
+
+    if (!autoResult) {
+      throw new ModelNotFoundError('auto (no compatible model found)')
+    }
+
+    resolvedModel = `${autoResult.provider}/${autoResult.modelId}`
+    autoReason = autoResult.reason
+  }
+
+  const primaryRoute = resolveRoute(resolvedModel)
+  if (!primaryRoute) throw new ModelNotFoundError(resolvedModel)
 
   const [config] = await db
     .select()
@@ -30,7 +64,7 @@ proxy.post('/v1/chat/completions', async (c) => {
     .where(eq(routingConfigs.userId, userId))
     .limit(1)
   const fallbackModels: string[] = config ? JSON.parse(config.fallbackChain) : []
-  const chain = buildFallbackChain(body.model, fallbackModels)
+  const chain = buildFallbackChain(resolvedModel, fallbackModels)
 
   let lastError: Error | null = null
 
@@ -104,15 +138,17 @@ proxy.post('/v1/chat/completions', async (c) => {
         })(),
       )
 
-      return new Response(result.stream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-          'X-EdgeRoute-Provider': route.provider,
-          'X-EdgeRoute-Model': route.modelId,
-        },
-      })
+      const responseHeaders: Record<string, string> = {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-EdgeRoute-Provider': route.provider,
+        'X-EdgeRoute-Model': route.modelId,
+      }
+      if (autoReason) {
+        responseHeaders['X-EdgeRoute-Auto-Reason'] = autoReason
+      }
+      return new Response(result.stream, { headers: responseHeaders })
     } catch (err) {
       lastError = err as Error
       if (err instanceof ProviderError && [429, 500, 503].includes(err.status)) continue
