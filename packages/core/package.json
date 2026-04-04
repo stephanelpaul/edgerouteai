@@ -5,7 +5,12 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./adapters/openai": "./src/adapters/openai.ts"
+    "./adapters/openai": "./src/adapters/openai.ts",
+    "./adapters/anthropic": "./src/adapters/anthropic.ts",
+    "./adapters/google": "./src/adapters/google.ts",
+    "./adapters/mistral": "./src/adapters/mistral.ts",
+    "./adapters/xai": "./src/adapters/xai.ts",
+    "./adapters/registry": "./src/adapters/registry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

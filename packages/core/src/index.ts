@@ -1,2 +1,7 @@
 export { openaiAdapter } from './adapters/openai.js'
+export { anthropicAdapter } from './adapters/anthropic.js'
+export { googleAdapter } from './adapters/google.js'
+export { mistralAdapter } from './adapters/mistral.js'
+export { xaiAdapter } from './adapters/xai.js'
+export { getAdapter, getAllAdapters } from './adapters/registry.js'
 export type { ProviderAdapter } from './adapters/types.js'
