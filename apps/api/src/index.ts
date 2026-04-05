@@ -18,6 +18,7 @@ import { modelAliasesRoute } from './routes/model-aliases.js'
 import { budgetsRoute } from './routes/budgets.js'
 import { webhooksRoute } from './routes/webhooks.js'
 import { requestTransformsRoute } from './routes/request-transforms.js'
+import { exportRoute } from './routes/export.js'
 import type { AppContext } from './lib/env.js'
 
 const app = new Hono<AppContext>()
@@ -58,6 +59,7 @@ app.route('/api/aliases', modelAliasesRoute)
 app.route('/api/budgets', budgetsRoute)
 app.route('/api/webhooks', webhooksRoute)
 app.route('/api/transforms', requestTransformsRoute)
+app.route('/api/export', exportRoute)
 
 app.onError((err, c) => {
   if (err instanceof EdgeRouteError) return c.json(err.toJSON(), err.status as Parameters<typeof c.json>[1])

@@ -58,6 +58,12 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           {user && <span className="text-sm text-neutral-400">{user.email}</span>}
           <button
+            onClick={() => { window.location.href = `${apiUrl}/api/export/stats?format=csv&days=30` }}
+            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-400 hover:bg-neutral-900 transition"
+          >
+            Export Stats
+          </button>
+          <button
             onClick={logout}
             className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-400 hover:bg-neutral-900 transition"
           >

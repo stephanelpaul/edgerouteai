@@ -75,7 +75,274 @@ const MODEL_GROUPS = MODEL_KEYS.reduce<Record<string, string[]>>((acc, key) => {
   return acc
 }, {})
 
-export default function ChatPage() {
+const DEFAULT_PLAYGROUND_TEMPLATE = JSON.stringify(
+  {
+    model: 'openai/gpt-5',
+    messages: [{ role: 'user', content: 'Hello' }],
+    stream: true,
+    temperature: 0.7,
+  },
+  null,
+  2,
+)
+
+interface ResponseSummary {
+  model: string
+  provider: string
+  latencyMs: number
+  headers: Record<string, string>
+}
+
+// ---- Playground Component ----
+function PlaygroundMode() {
+  const { apiKey, apiUrl } = useAuth()
+  const [selectedModel, setSelectedModel] = useState<string>(MODEL_KEYS[0])
+  const [requestJson, setRequestJson] = useState(DEFAULT_PLAYGROUND_TEMPLATE)
+  const [jsonError, setJsonError] = useState<string | null>(null)
+  const [responseText, setResponseText] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const [summary, setSummary] = useState<ResponseSummary | null>(null)
+  const [responseHeaders, setResponseHeaders] = useState<Record<string, string>>({})
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Sync model dropdown → JSON
+  const handleModelChange = (model: string) => {
+    setSelectedModel(model)
+    try {
+      const parsed = JSON.parse(requestJson)
+      parsed.model = model
+      setRequestJson(JSON.stringify(parsed, null, 2))
+      setJsonError(null)
+    } catch {
+      // don't overwrite invalid JSON
+    }
+  }
+
+  const handleJsonChange = (val: string) => {
+    setRequestJson(val)
+    try {
+      JSON.parse(val)
+      setJsonError(null)
+    } catch (e: any) {
+      setJsonError(e.message)
+    }
+  }
+
+  const sendRequest = async () => {
+    if (jsonError || isSending || !apiKey) return
+    let body: any
+    try {
+      body = JSON.parse(requestJson)
+    } catch (e: any) {
+      setJsonError(e.message)
+      return
+    }
+
+    setIsSending(true)
+    setResponseText('')
+    setSummary(null)
+    setResponseHeaders({})
+
+    const controller = new AbortController()
+    abortRef.current = controller
+    const startTime = Date.now()
+
+    try {
+      const response = await fetch(`${apiUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+
+      // Capture response headers
+      const hdrs: Record<string, string> = {}
+      const TRACKED_HEADERS = [
+        'x-edgeroute-provider',
+        'x-edgeroute-model',
+        'x-edgeroute-cache',
+        'x-edgeroute-auto-reason',
+        'content-type',
+      ]
+      for (const h of TRACKED_HEADERS) {
+        const v = response.headers.get(h)
+        if (v) hdrs[h] = v
+      }
+      setResponseHeaders(hdrs)
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }))
+        const msg = (data as any)?.error?.message ?? `HTTP ${response.status}`
+        setResponseText(`Error: ${msg}`)
+        setIsSending(false)
+        return
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        setResponseText('Error: No response body')
+        setIsSending(false)
+        return
+      }
+
+      const decoder = new TextDecoder()
+      let raw = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        raw += chunk
+        setResponseText(raw)
+      }
+
+      const latencyMs = Date.now() - startTime
+      setSummary({
+        model: hdrs['x-edgeroute-model'] ?? body.model,
+        provider: hdrs['x-edgeroute-provider'] ?? 'unknown',
+        latencyMs,
+        headers: hdrs,
+      })
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        setResponseText(`Error: ${err.message ?? 'Unknown error'}`)
+      }
+    } finally {
+      setIsSending(false)
+      abortRef.current = null
+    }
+  }
+
+  return (
+    <div className="flex flex-1 overflow-hidden">
+      {/* Left panel: Request editor */}
+      <div className="flex flex-col w-1/2 border-r border-neutral-800">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-800 bg-neutral-900/40">
+          <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">Request</span>
+          <select
+            value={selectedModel}
+            onChange={(e) => handleModelChange(e.target.value)}
+            disabled={isSending}
+            className="ml-auto rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs focus:border-purple-500 focus:outline-none disabled:opacity-50 cursor-pointer"
+          >
+            <optgroup label="Auto">
+              {AUTO_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </optgroup>
+            {Object.entries(MODEL_GROUPS).map(([provider, keys]) => (
+              <optgroup key={provider} label={capitalizeProvider(provider)}>
+                {keys.map((key) => (
+                  <option key={key} value={key}>{getModelLabel(key)}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 relative">
+          <textarea
+            value={requestJson}
+            onChange={(e) => handleJsonChange(e.target.value)}
+            disabled={isSending}
+            spellCheck={false}
+            className="w-full h-full resize-none bg-neutral-950 px-4 py-4 font-mono text-sm text-neutral-200 focus:outline-none disabled:opacity-50"
+            style={{ minHeight: '300px' }}
+          />
+          {jsonError && (
+            <div className="absolute bottom-0 left-0 right-0 px-4 py-2 bg-red-950/80 border-t border-red-900">
+              <p className="text-xs text-red-400 font-mono">{jsonError}</p>
+            </div>
+          )}
+        </div>
+        <div className="px-4 py-3 border-t border-neutral-800 bg-neutral-900/40 flex gap-2">
+          {isSending ? (
+            <button
+              onClick={() => abortRef.current?.abort()}
+              className="rounded-lg bg-neutral-700 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-600 transition"
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              onClick={sendRequest}
+              disabled={!!jsonError || !apiKey}
+              className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-500 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Send Request
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Right panel: Response viewer */}
+      <div className="flex flex-col w-1/2">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-800 bg-neutral-900/40">
+          <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">Response</span>
+          {isSending && (
+            <span className="ml-auto flex items-center gap-1.5 text-xs text-purple-400">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+              Streaming...
+            </span>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* Raw SSE output */}
+          <pre className="px-4 py-4 font-mono text-xs text-neutral-300 whitespace-pre-wrap break-words min-h-[200px]">
+            {responseText || <span className="text-neutral-600">Response will appear here...</span>}
+          </pre>
+        </div>
+
+        {/* Response headers */}
+        {Object.keys(responseHeaders).length > 0 && (
+          <div className="border-t border-neutral-800 px-4 py-3 bg-neutral-900/30">
+            <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wider">Response Headers</p>
+            <div className="space-y-1">
+              {Object.entries(responseHeaders).map(([k, v]) => (
+                <div key={k} className="flex gap-2 font-mono text-xs">
+                  <span className="text-purple-400 shrink-0">{k}:</span>
+                  <span className="text-neutral-300 break-all">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Summary after completion */}
+        {summary && !isSending && (
+          <div className="border-t border-neutral-800 px-4 py-3 bg-neutral-900/30">
+            <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wider">Summary</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-neutral-500">Provider: </span>
+                <span className="text-neutral-200 capitalize">{summary.provider}</span>
+              </div>
+              <div>
+                <span className="text-neutral-500">Model: </span>
+                <span className="text-neutral-200">{summary.model}</span>
+              </div>
+              <div>
+                <span className="text-neutral-500">Latency: </span>
+                <span className="text-neutral-200">{summary.latencyMs}ms</span>
+              </div>
+              <div>
+                <span className="text-neutral-500">Cache: </span>
+                <span className={summary.headers['x-edgeroute-cache'] === 'HIT' ? 'text-green-400' : 'text-neutral-400'}>
+                  {summary.headers['x-edgeroute-cache'] ?? 'MISS'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---- Chat Component ----
+function ChatMode() {
   const { apiKey, apiUrl } = useAuth()
   const [selectedModel, setSelectedModel] = useState<string>(MODEL_KEYS[0])
   const [messages, setMessages] = useState<Message[]>([])
@@ -186,7 +453,6 @@ export default function ChatPage() {
       } else {
         const msg = err instanceof Error ? err.message : 'Unknown error'
         setError(msg)
-        // Remove the empty assistant message on error
         setMessages((prev) => {
           const updated = [...prev]
           if (updated[updated.length - 1]?.role === 'assistant' && !updated[updated.length - 1].content) {
@@ -208,27 +474,10 @@ export default function ChatPage() {
     }
   }
 
-  if (!apiKey) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <p className="text-neutral-400">Connect your API key to use the chat playground.</p>
-          <Link
-            href="/dashboard"
-            className="mt-4 inline-block rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-500 transition"
-          >
-            Connect API Key
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col h-full -m-8">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-neutral-800 px-6 py-4 bg-neutral-950">
-        <h1 className="text-lg font-semibold">Chat Playground</h1>
+    <>
+      {/* Model selector */}
+      <div className="flex items-center border-b border-neutral-800 px-6 py-3 bg-neutral-950">
         <select
           value={selectedModel}
           onChange={(e) => setSelectedModel(e.target.value)}
@@ -237,17 +486,13 @@ export default function ChatPage() {
         >
           <optgroup label="Auto">
             {AUTO_OPTIONS.map((opt) => (
-              <option key={opt.id} value={opt.id}>
-                {opt.label}
-              </option>
+              <option key={opt.id} value={opt.id}>{opt.label}</option>
             ))}
           </optgroup>
           {Object.entries(MODEL_GROUPS).map(([provider, keys]) => (
             <optgroup key={provider} label={capitalizeProvider(provider)}>
               {keys.map((key) => (
-                <option key={key} value={key}>
-                  {getModelLabel(key)}
-                </option>
+                <option key={key} value={key}>{getModelLabel(key)}</option>
               ))}
             </optgroup>
           ))}
@@ -293,17 +538,12 @@ export default function ChatPage() {
           </div>
         )}
         {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap break-words ${
-                msg.role === 'user'
-                  ? 'bg-purple-600 text-white rounded-br-sm'
-                  : 'bg-neutral-800 text-neutral-100 rounded-bl-sm'
-              }`}
-            >
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap break-words ${
+              msg.role === 'user'
+                ? 'bg-purple-600 text-white rounded-br-sm'
+                : 'bg-neutral-800 text-neutral-100 rounded-bl-sm'
+            }`}>
               {msg.content}
               {msg.role === 'assistant' && isStreaming && i === messages.length - 1 && (
                 <span className="inline-block w-1.5 h-4 ml-0.5 bg-neutral-400 animate-pulse align-middle" />
@@ -347,6 +587,60 @@ export default function ChatPage() {
         </div>
         <p className="mt-2 text-xs text-neutral-600">Enter to send · Shift+Enter for newline</p>
       </div>
+    </>
+  )
+}
+
+export default function ChatPage() {
+  const { apiKey } = useAuth()
+  const [mode, setMode] = useState<'chat' | 'playground'>('chat')
+
+  if (!apiKey) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <p className="text-neutral-400">Connect your API key to use the chat playground.</p>
+          <Link
+            href="/dashboard"
+            className="mt-4 inline-block rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-500 transition"
+          >
+            Connect API Key
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col h-full -m-8">
+      {/* Header with mode toggle */}
+      <div className="flex items-center border-b border-neutral-800 px-6 py-4 bg-neutral-950 shrink-0">
+        <h1 className="text-lg font-semibold mr-6">Chat Playground</h1>
+        <div className="flex rounded-lg border border-neutral-700 overflow-hidden">
+          <button
+            onClick={() => setMode('chat')}
+            className={`px-4 py-1.5 text-sm font-medium transition ${mode === 'chat' ? 'bg-purple-600 text-white' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}`}
+          >
+            Chat
+          </button>
+          <button
+            onClick={() => setMode('playground')}
+            className={`px-4 py-1.5 text-sm font-medium transition ${mode === 'playground' ? 'bg-purple-600 text-white' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}`}
+          >
+            Playground
+          </button>
+        </div>
+      </div>
+
+      {mode === 'chat' ? (
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <ChatMode />
+        </div>
+      ) : (
+        <div className="flex flex-1 overflow-hidden">
+          <PlaygroundMode />
+        </div>
+      )}
     </div>
   )
 }

@@ -13,6 +13,7 @@ providerKeysRoute.get('/', async (c) => {
     .select({
       id: providerKeys.id,
       provider: providerKeys.provider,
+      label: providerKeys.label,
       isValid: providerKeys.isValid,
       lastVerifiedAt: providerKeys.lastVerifiedAt,
       createdAt: providerKeys.createdAt,
@@ -22,19 +23,45 @@ providerKeysRoute.get('/', async (c) => {
   return c.json({ keys })
 })
 
+// Add a new provider key (allows multiple per provider)
+providerKeysRoute.post('/', async (c) => {
+  const userId = c.get('userId')
+  const body = await c.req.json<{ provider: string; apiKey: string; label?: string }>()
+  if (!body.provider || !body.apiKey) {
+    return c.json({ error: { message: 'provider and apiKey are required', code: 'validation_error', type: 'edgeroute_error' } }, 400)
+  }
+  const db = createDb(c.env.DB)
+  const { encrypted, iv } = await encrypt(body.apiKey, c.env.ENCRYPTION_KEY)
+  const id = crypto.randomUUID()
+  await db.insert(providerKeys).values({
+    id,
+    userId,
+    provider: body.provider,
+    label: body.label ?? 'Default',
+    encryptedKey: new Uint8Array(encrypted),
+    iv: new Uint8Array(iv),
+    isValid: true,
+    createdAt: new Date(),
+  })
+  return c.json({ success: true, id, provider: body.provider, label: body.label ?? 'Default' })
+})
+
+// Legacy PUT /:provider — kept for backwards compat, replaces all keys for that provider
 providerKeysRoute.put('/:provider', async (c) => {
   const userId = c.get('userId')
   const provider = c.req.param('provider')
-  const body = await c.req.json<{ apiKey: string }>()
+  const body = await c.req.json<{ apiKey: string; label?: string }>()
   const db = createDb(c.env.DB)
   const { encrypted, iv } = await encrypt(body.apiKey, c.env.ENCRYPTION_KEY)
   await db
     .delete(providerKeys)
     .where(and(eq(providerKeys.userId, userId), eq(providerKeys.provider, provider)))
+  const id = crypto.randomUUID()
   await db.insert(providerKeys).values({
-    id: crypto.randomUUID(),
+    id,
     userId,
     provider,
+    label: body.label ?? 'Default',
     encryptedKey: new Uint8Array(encrypted),
     iv: new Uint8Array(iv),
     isValid: true,
@@ -43,24 +70,31 @@ providerKeysRoute.put('/:provider', async (c) => {
   return c.json({ success: true, provider })
 })
 
-providerKeysRoute.delete('/:provider', async (c) => {
+// Delete a specific key by ID
+providerKeysRoute.delete('/:id', async (c) => {
   const userId = c.get('userId')
-  const provider = c.req.param('provider')
+  const id = c.req.param('id')
   const db = createDb(c.env.DB)
-  await db
-    .delete(providerKeys)
-    .where(and(eq(providerKeys.userId, userId), eq(providerKeys.provider, provider)))
+  // Ensure this key belongs to the user
+  const [pk] = await db
+    .select({ id: providerKeys.id })
+    .from(providerKeys)
+    .where(and(eq(providerKeys.id, id), eq(providerKeys.userId, userId)))
+    .limit(1)
+  if (!pk) return c.json({ error: { message: 'Key not found', code: 'not_found', type: 'edgeroute_error' } }, 404)
+  await db.delete(providerKeys).where(eq(providerKeys.id, id))
   return c.json({ success: true })
 })
 
-providerKeysRoute.post('/:provider/verify', async (c) => {
+// Verify a specific key by ID
+providerKeysRoute.post('/:id/verify', async (c) => {
   const userId = c.get('userId')
-  const provider = c.req.param('provider')
+  const id = c.req.param('id')
   const db = createDb(c.env.DB)
   const [pk] = await db
     .select()
     .from(providerKeys)
-    .where(and(eq(providerKeys.userId, userId), eq(providerKeys.provider, provider)))
+    .where(and(eq(providerKeys.id, id), eq(providerKeys.userId, userId)))
     .limit(1)
   if (!pk) return c.json({ valid: false, error: 'No key found' }, 404)
   const apiKey = await decrypt(
@@ -90,7 +124,7 @@ providerKeysRoute.post('/:provider/verify', async (c) => {
         headers: (k) => ({ Authorization: `Bearer ${k}` }),
       },
     }
-    const verifier = VERIFY_URLS[provider]
+    const verifier = VERIFY_URLS[pk.provider]
     if (verifier) {
       const res = await fetch(verifier.url, {
         method: 'GET',

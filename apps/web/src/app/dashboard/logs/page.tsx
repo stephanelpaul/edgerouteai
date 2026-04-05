@@ -40,6 +40,10 @@ export default function LogsPage() {
     if (isAuthenticated) loadLogs()
   }, [isAuthenticated, loadLogs])
 
+  const exportLogs = (format: 'csv' | 'json', days = 30) => {
+    window.location.href = `${apiUrl}/api/export/logs?format=${format}&days=${days}`
+  }
+
   if (!isAuthenticated) {
     return <p className="text-neutral-500">Please sign in to access this page.</p>
   }
@@ -51,12 +55,26 @@ export default function LogsPage() {
           <h1 className="text-2xl font-bold">Request Logs</h1>
           <p className="mt-1 text-neutral-400">View your API request history.</p>
         </div>
-        <button
-          onClick={loadLogs}
-          className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-900 transition"
-        >
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportLogs('csv')}
+            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-900 transition"
+          >
+            Export CSV
+          </button>
+          <button
+            onClick={() => exportLogs('json')}
+            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-900 transition"
+          >
+            Export JSON
+          </button>
+          <button
+            onClick={loadLogs}
+            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-900 transition"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}

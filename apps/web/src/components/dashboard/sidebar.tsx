@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
   { href: '/dashboard/chat', label: 'Chat' },
+  { href: '/dashboard/compare', label: 'Compare' },
   { href: '/dashboard/keys', label: 'API Keys' },
   { href: '/dashboard/providers', label: 'Providers' },
   { href: '/dashboard/logs', label: 'Logs' },

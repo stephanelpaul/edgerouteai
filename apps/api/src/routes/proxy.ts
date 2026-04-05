@@ -228,11 +228,14 @@ proxy.post('/v1/chat/completions', async (c) => {
       .select()
       .from(providerKeys)
       .where(eq(providerKeys.userId, userId))
-    const [pk] = allProviderKeys.filter((r) => r.provider === route.provider)
-    if (!pk) {
+    const providerKeysList = allProviderKeys.filter((r) => r.provider === route.provider)
+    if (providerKeysList.length === 0) {
       lastError = new ProviderKeyMissingError(route.provider)
       continue
     }
+    // Load balance: random selection distributes load across multiple keys
+    const keyIndex = Math.floor(Math.random() * providerKeysList.length)
+    const pk = providerKeysList[keyIndex]
 
     const apiKey = await decrypt(
       pk.encryptedKey as unknown as ArrayBuffer,

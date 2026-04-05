@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, blob, real, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { integer, sqliteTable, text, blob, real, uniqueIndex, index } from 'drizzle-orm/sqlite-core'
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -31,13 +31,14 @@ export const providerKeys = sqliteTable('provider_keys', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id),
   provider: text('provider').notNull(),
+  label: text('label').default('Default'),
   encryptedKey: blob('encrypted_key', { mode: 'buffer' }).notNull(),
   iv: blob('iv', { mode: 'buffer' }).notNull(),
   isValid: integer('is_valid', { mode: 'boolean' }).default(true),
   lastVerifiedAt: integer('last_verified_at', { mode: 'timestamp_ms' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 }, (table) => [
-  uniqueIndex('provider_keys_user_provider_idx').on(table.userId, table.provider),
+  index('provider_keys_user_provider_idx').on(table.userId, table.provider),
 ])
 
 export const requestLogs = sqliteTable('request_logs', {
