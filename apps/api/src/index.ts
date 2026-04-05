@@ -2,8 +2,6 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { EdgeRouteError } from '@edgerouteai/shared'
-import { createAuth } from '@edgerouteai/auth'
-import { createDb } from '@edgerouteai/db'
 import { authMiddleware } from './middleware/auth.js'
 import { sessionOrKeyAuth } from './middleware/session-auth.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
@@ -19,6 +17,7 @@ import { budgetsRoute } from './routes/budgets.js'
 import { webhooksRoute } from './routes/webhooks.js'
 import { requestTransformsRoute } from './routes/request-transforms.js'
 import { exportRoute } from './routes/export.js'
+import { authRoute } from './routes/auth.js'
 import type { AppContext } from './lib/env.js'
 
 const app = new Hono<AppContext>()
@@ -31,16 +30,8 @@ app.use('*', logger())
 
 app.get('/health', (c) => c.json({ status: 'ok', service: 'edgerouteai' }))
 
-// Better Auth handler — must be BEFORE the sessionOrKeyAuth middleware
-app.on(['GET', 'POST'], '/api/auth/**', async (c) => {
-  const db = createDb(c.env.DB)
-  const auth = createAuth(db, {
-    baseURL: new URL(c.req.url).origin,
-    secret: c.env.ENCRYPTION_KEY,
-    trustedOrigins: ['https://edgerouteai-web.pages.dev', 'http://localhost:3000'],
-  })
-  return auth.handler(c.req.raw)
-})
+// Custom auth routes — must be BEFORE the sessionOrKeyAuth middleware
+app.route('/api/auth', authRoute)
 
 // Proxy routes — API key only
 app.use('/v1/*', authMiddleware)

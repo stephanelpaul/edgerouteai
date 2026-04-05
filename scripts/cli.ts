@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { randomUUID, randomBytes, scryptSync, createHash } from 'crypto'
+import { randomUUID, randomBytes, pbkdf2Sync, createHash } from 'crypto'
 
 const DB_NAME = 'edgerouteai-db'
 const API_URL = 'https://edgerouteai-api.remediumdev.workers.dev'
@@ -27,10 +27,10 @@ function d1Execute(sql: string): string {
 }
 
 function hashPassword(password: string): string {
-  // Match Better Auth's scrypt format
-  const salt = randomBytes(16).toString('hex')
-  const hash = scryptSync(password, salt, 64).toString('hex')
-  return `${salt}:${hash}`
+  // PBKDF2 format matching the Workers crypto.subtle implementation
+  const salt = randomBytes(16)
+  const hash = pbkdf2Sync(password, salt, 100000, 32, 'sha256')
+  return salt.toString('hex') + ':' + hash.toString('hex')
 }
 
 function hashApiKey(key: string): string {

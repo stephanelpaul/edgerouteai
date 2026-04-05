@@ -1,12 +1,23 @@
 import { createMiddleware } from 'hono/factory'
-import { createAuth } from '@edgerouteai/auth'
 import { createDb, apiKeys } from '@edgerouteai/db'
 import { eq } from 'drizzle-orm'
 import { AuthenticationError } from '@edgerouteai/shared'
 import { hashApiKey } from './auth.js'
 import type { AppContext } from '../lib/env.js'
 
+function parseCookie(cookieHeader: string | undefined, name: string): string | null {
+  if (!cookieHeader) return null
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`))
+  return match ? match[1] : null
+}
+
 export const sessionOrKeyAuth = createMiddleware<AppContext>(async (c, next) => {
+  // Skip auth for custom auth routes (signup, signin, etc.)
+  const path = new URL(c.req.url).pathname
+  if (path.startsWith('/api/auth/')) {
+    return next()
+  }
+
   const authHeader = c.req.header('Authorization')
 
   // Try API key auth first
@@ -31,22 +42,25 @@ export const sessionOrKeyAuth = createMiddleware<AppContext>(async (c, next) => 
     }
   }
 
-  // Try session auth
-  const db = createDb(c.env.DB)
-  const auth = createAuth(db, {
-    baseURL: new URL(c.req.url).origin,
-    secret: c.env.ENCRYPTION_KEY,
-    trustedOrigins: ['https://edgerouteai-web.pages.dev', 'http://localhost:3000'],
-  })
+  // Try session auth via direct D1 query
+  const cookieHeader = c.req.header('Cookie')
+  const sessionToken = parseCookie(cookieHeader, 'edgeroute_session')
 
-  const session = await auth.api.getSession({ headers: c.req.raw.headers })
+  if (sessionToken) {
+    const now = Date.now()
+    const result = await c.env.DB.prepare(
+      'SELECT s."userId", s."expiresAt" FROM "session" s WHERE s."token" = ? AND s."expiresAt" > ?',
+    )
+      .bind(sessionToken, now)
+      .first<{ userId: string; expiresAt: number }>()
 
-  if (session?.user) {
-    c.set('userId', session.user.id)
-    c.set('apiKeyId', 'session')
-    c.set('retryCount', 2)
-    c.set('timeoutMs', 30000)
-    return next()
+    if (result) {
+      c.set('userId', result.userId)
+      c.set('apiKeyId', 'session')
+      c.set('retryCount', 2)
+      c.set('timeoutMs', 30000)
+      return next()
+    }
   }
 
   throw new AuthenticationError('Not authenticated. Please sign in or provide an API key.')
