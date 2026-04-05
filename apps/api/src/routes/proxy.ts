@@ -1,7 +1,16 @@
 import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
 import { resolveRoute, buildFallbackChain, proxyRequest, autoRoute } from '@edgerouteai/core'
-import { createDb, providerKeys, routingConfigs, requestLogs, modelAliases, budgets } from '@edgerouteai/db'
+import {
+  createDb,
+  providerKeys,
+  routingConfigs,
+  requestLogs,
+  modelAliases,
+  budgets,
+  webhooks,
+  requestTransforms,
+} from '@edgerouteai/db'
 import {
   ModelNotFoundError,
   ProviderKeyMissingError,
@@ -27,9 +36,56 @@ async function hashRequest(req: ChatCompletionRequest): Promise<string> {
   return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
+async function hmacSign(body: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body))
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number,
+  timeoutMs: number,
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      try {
+        const result = await fn()
+        clearTimeout(timer)
+        return result
+      } catch (err) {
+        clearTimeout(timer)
+        throw err
+      }
+    } catch (err: any) {
+      const isRetryable = err?.status && [429, 500, 502, 503].includes(err.status)
+      const isTimeout = err?.name === 'AbortError'
+      if ((isRetryable || isTimeout) && attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000)
+        await new Promise((r) => setTimeout(r, delay))
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('Retry exhausted')
+}
+
 proxy.post('/v1/chat/completions', async (c) => {
   const userId = c.get('userId')
   const apiKeyId = c.get('apiKeyId')
+  const retryCount = c.get('retryCount')
+  const timeoutMs = c.get('timeoutMs')
   const body = await c.req.json<ChatCompletionRequest>()
   const db = createDb(c.env.DB)
 
@@ -49,7 +105,7 @@ proxy.post('/v1/chat/completions', async (c) => {
   // Handle auto-routing
   if (resolvedModel === 'auto' || resolvedModel.startsWith('auto/')) {
     const tierStr = resolvedModel === 'auto' ? undefined : resolvedModel.split('/')[1]
-    const tier = (tierStr === 'quality' || tierStr === 'balanced' || tierStr === 'budget')
+    const tier = tierStr === 'quality' || tierStr === 'balanced' || tierStr === 'budget'
       ? tierStr
       : undefined
 
@@ -106,7 +162,7 @@ proxy.post('/v1/chat/completions', async (c) => {
     }
   }
 
-  // Cache check (only for streaming requests)
+  // Cache check (only for non-streaming requests)
   const cacheKey = `cache:${userId}:${await hashRequest({ ...body, model: resolvedModel })}`
   if (body.stream !== false && c.env.CACHE) {
     const cached = await c.env.CACHE.get(cacheKey)
@@ -119,6 +175,38 @@ proxy.post('/v1/chat/completions', async (c) => {
           'X-EdgeRoute-Cache': 'HIT',
         },
       })
+    }
+  }
+
+  // Apply request transforms (only when authenticated with a real API key)
+  if (apiKeyId !== 'session') {
+    const transforms = await db
+      .select()
+      .from(requestTransforms)
+      .where(and(eq(requestTransforms.apiKeyId, apiKeyId), eq(requestTransforms.isActive, true)))
+
+    for (const transform of transforms) {
+      if (transform.type === 'prepend_system') {
+        body.messages = [{ role: 'system', content: transform.value }, ...body.messages]
+      } else if (transform.type === 'append_system') {
+        const systemIdx = body.messages.findIndex((m) => m.role === 'system')
+        if (systemIdx >= 0) {
+          const existing = body.messages[systemIdx].content
+          body.messages[systemIdx] = {
+            ...body.messages[systemIdx],
+            content: existing + '\n' + transform.value,
+          }
+        } else {
+          body.messages = [{ role: 'system', content: transform.value }, ...body.messages]
+        }
+      } else if (transform.type === 'set_parameter') {
+        const params = JSON.parse(transform.value)
+        for (const [key, val] of Object.entries(params)) {
+          if ((body as any)[key] === undefined) {
+            ;(body as any)[key] = val
+          }
+        }
+      }
     }
   }
 
@@ -154,12 +242,17 @@ proxy.post('/v1/chat/completions', async (c) => {
 
     try {
       const startTime = Date.now()
-      const result = await proxyRequest({
-        request: body,
-        adapter: route.adapter,
-        modelId: route.modelId,
-        apiKey,
-      })
+      const result = await withRetry(
+        () =>
+          proxyRequest({
+            request: body,
+            adapter: route.adapter,
+            modelId: route.modelId,
+            apiKey,
+          }),
+        retryCount,
+        timeoutMs,
+      )
 
       c.executionCtx.waitUntil(
         (async () => {
@@ -210,11 +303,76 @@ proxy.post('/v1/chat/completions', async (c) => {
                   isDisabled: newSpend >= budget.monthlyLimitUsd,
                 })
                 .where(eq(budgets.id, budget.id))
+
+              // Fire budget.exceeded webhook if limit just hit
+              if (newSpend >= budget.monthlyLimitUsd) {
+                const userWebhooks = await db
+                  .select()
+                  .from(webhooks)
+                  .where(and(eq(webhooks.userId, userId), eq(webhooks.isActive, true)))
+                const budgetEvent = {
+                  event: 'budget.exceeded',
+                  data: {
+                    apiKeyId,
+                    monthlyLimitUsd: budget.monthlyLimitUsd,
+                    currentSpendUsd: newSpend,
+                    timestamp: new Date().toISOString(),
+                  },
+                }
+                for (const wh of userWebhooks) {
+                  const events = JSON.parse(wh.events)
+                  if (events.includes('budget.exceeded')) {
+                    const whBody = JSON.stringify(budgetEvent)
+                    const signature = wh.secret ? await hmacSign(whBody, wh.secret) : undefined
+                    fetch(wh.url, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        ...(signature ? { 'X-EdgeRoute-Signature': signature } : {}),
+                      },
+                      body: whBody,
+                    }).catch(() => {})
+                  }
+                }
+              }
             }
 
             // Store in cache (only for streaming responses with successful content)
             if (body.stream !== false && rawText && c.env.CACHE) {
               await c.env.CACHE.put(cacheKey, rawText, { expirationTtl: 3600 })
+            }
+
+            // Fire request.completed webhooks
+            const userWebhooks = await db
+              .select()
+              .from(webhooks)
+              .where(and(eq(webhooks.userId, userId), eq(webhooks.isActive, true)))
+            const requestEvent = {
+              event: 'request.completed',
+              data: {
+                model: route.modelId,
+                provider: route.provider,
+                inputTokens: usage.prompt_tokens,
+                outputTokens: usage.completion_tokens,
+                costUsd,
+                latencyMs,
+                timestamp: new Date().toISOString(),
+              },
+            }
+            for (const wh of userWebhooks) {
+              const events = JSON.parse(wh.events)
+              if (events.includes('request.completed')) {
+                const whBody = JSON.stringify(requestEvent)
+                const signature = wh.secret ? await hmacSign(whBody, wh.secret) : undefined
+                fetch(wh.url, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(signature ? { 'X-EdgeRoute-Signature': signature } : {}),
+                  },
+                  body: whBody,
+                }).catch(() => {})
+              }
             }
           } catch (err) {
             console.error('Background logging error:', err)

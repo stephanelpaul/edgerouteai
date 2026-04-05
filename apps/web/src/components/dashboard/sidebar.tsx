@@ -11,6 +11,8 @@ const navItems = [
   { href: '/dashboard/logs', label: 'Logs' },
   { href: '/dashboard/routing', label: 'Routing' },
   { href: '/dashboard/aliases', label: 'Aliases' },
+  { href: '/dashboard/webhooks', label: 'Webhooks' },
+  { href: '/dashboard/transforms', label: 'Transforms' },
   { href: '/dashboard/settings', label: 'Settings' },
 ]
 

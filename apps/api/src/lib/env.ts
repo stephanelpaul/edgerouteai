@@ -11,5 +11,7 @@ export interface AppContext {
   Variables: {
     userId: string
     apiKeyId: string
+    retryCount: number
+    timeoutMs: number
   }
 }

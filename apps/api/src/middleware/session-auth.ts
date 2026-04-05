@@ -22,6 +22,8 @@ export const sessionOrKeyAuth = createMiddleware<AppContext>(async (c, next) => 
     if (keyRecord && !keyRecord.revokedAt) {
       c.set('userId', keyRecord.userId)
       c.set('apiKeyId', keyRecord.id)
+      c.set('retryCount', keyRecord.retryCount ?? 2)
+      c.set('timeoutMs', keyRecord.timeoutMs ?? 30000)
       c.executionCtx.waitUntil(
         db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, keyRecord.id))
       )
@@ -42,6 +44,8 @@ export const sessionOrKeyAuth = createMiddleware<AppContext>(async (c, next) => 
   if (session?.user) {
     c.set('userId', session.user.id)
     c.set('apiKeyId', 'session')
+    c.set('retryCount', 2)
+    c.set('timeoutMs', 30000)
     return next()
   }
 

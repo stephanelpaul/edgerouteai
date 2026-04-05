@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
 import { createDb, apiKeys } from '@edgerouteai/db'
+import { EdgeRouteError } from '@edgerouteai/shared'
 import { hashApiKey } from '../middleware/auth.js'
 import type { AppContext } from '../lib/env.js'
 
@@ -16,6 +17,8 @@ apiKeysRoute.get('/', async (c) => {
       keyPrefix: apiKeys.keyPrefix,
       rateLimit: apiKeys.rateLimit,
       modelRestrictions: apiKeys.modelRestrictions,
+      retryCount: apiKeys.retryCount,
+      timeoutMs: apiKeys.timeoutMs,
       lastUsedAt: apiKeys.lastUsedAt,
       createdAt: apiKeys.createdAt,
       revokedAt: apiKeys.revokedAt,
@@ -32,6 +35,8 @@ apiKeysRoute.post('/', async (c) => {
     name: string
     rateLimit?: number
     modelRestrictions?: string[]
+    retryCount?: number
+    timeoutMs?: number
   }>()
   const rawKey = `sk-er-${generateRandomString(48)}`
   const keyHash = await hashApiKey(rawKey)
@@ -45,9 +50,35 @@ apiKeysRoute.post('/', async (c) => {
     keyPrefix,
     rateLimit: body.rateLimit ?? null,
     modelRestrictions: body.modelRestrictions ? JSON.stringify(body.modelRestrictions) : null,
+    retryCount: body.retryCount ?? 2,
+    timeoutMs: body.timeoutMs ?? 30000,
     createdAt: new Date(),
   })
   return c.json({ id, key: rawKey, name: body.name, keyPrefix }, 201)
+})
+
+apiKeysRoute.patch('/:id', async (c) => {
+  const userId = c.get('userId')
+  const keyId = c.req.param('id')
+  const db = createDb(c.env.DB)
+  const body = await c.req.json<{ retryCount?: number; timeoutMs?: number }>()
+
+  const [key] = await db
+    .select({ id: apiKeys.id })
+    .from(apiKeys)
+    .where(eq(apiKeys.id, keyId))
+    .limit(1)
+
+  if (!key) {
+    throw new EdgeRouteError('API key not found', 'not_found', 404)
+  }
+
+  const updates: Partial<typeof apiKeys.$inferInsert> = {}
+  if (body.retryCount !== undefined) updates.retryCount = Math.max(0, Math.min(5, body.retryCount))
+  if (body.timeoutMs !== undefined) updates.timeoutMs = Math.max(5000, Math.min(60000, body.timeoutMs))
+
+  await db.update(apiKeys).set(updates).where(eq(apiKeys.id, keyId))
+  return c.json({ success: true })
 })
 
 apiKeysRoute.delete('/:id', async (c) => {

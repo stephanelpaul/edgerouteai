@@ -18,6 +18,8 @@ export const apiKeys = sqliteTable('api_keys', {
   keyPrefix: text('key_prefix').notNull(),
   rateLimit: integer('rate_limit'),
   modelRestrictions: text('model_restrictions'),
+  retryCount: integer('retry_count').default(2),
+  timeoutMs: integer('timeout_ms').default(30000),
   lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   revokedAt: integer('revoked_at', { mode: 'timestamp_ms' }),
@@ -79,5 +81,24 @@ export const budgets = sqliteTable('budgets', {
   currentSpendUsd: real('current_spend_usd').notNull().default(0),
   periodStart: integer('period_start', { mode: 'timestamp_ms' }).notNull(),
   isDisabled: integer('is_disabled', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+export const webhooks = sqliteTable('webhooks', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  url: text('url').notNull(),
+  events: text('events').notNull(), // JSON array: ["request.completed", "budget.exceeded"]
+  secret: text('secret'),
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+export const requestTransforms = sqliteTable('request_transforms', {
+  id: text('id').primaryKey(),
+  apiKeyId: text('api_key_id').notNull().references(() => apiKeys.id),
+  type: text('type').notNull(), // "prepend_system", "append_system", "set_parameter"
+  value: text('value').notNull(), // JSON — the content or parameter to inject
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })

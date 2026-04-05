@@ -5,9 +5,12 @@ import { useAuth } from '@/lib/auth-context'
 interface ApiKey {
   id: string
   name: string
-  prefix: string
+  keyPrefix: string
+  retryCount: number
+  timeoutMs: number
   createdAt: string
   lastUsedAt?: string
+  revokedAt?: string
 }
 
 interface Budget {
@@ -28,6 +31,8 @@ export default function KeysPage() {
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
+  const [newKeyRetry, setNewKeyRetry] = useState(2)
+  const [newKeyTimeout, setNewKeyTimeout] = useState(30)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
@@ -36,6 +41,11 @@ export default function KeysPage() {
   const [budgetAmount, setBudgetAmount] = useState('')
   const [savingBudget, setSavingBudget] = useState(false)
   const [budgetError, setBudgetError] = useState('')
+  const [retryKeyId, setRetryKeyId] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(2)
+  const [timeoutSec, setTimeoutSec] = useState(30)
+  const [savingRetry, setSavingRetry] = useState(false)
+  const [retryError, setRetryError] = useState('')
 
   const loadKeys = useCallback(async () => {
     setLoading(true)
@@ -71,12 +81,18 @@ export default function KeysPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name: newKeyName.trim() }),
+        body: JSON.stringify({
+          name: newKeyName.trim(),
+          retryCount: newKeyRetry,
+          timeoutMs: newKeyTimeout * 1000,
+        }),
       })
       const data = await r.json()
       if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
       setNewKeyValue((data as any).key)
       setNewKeyName('')
+      setNewKeyRetry(2)
+      setNewKeyTimeout(30)
       setShowForm(false)
       loadKeys()
     } catch (err: any) {
@@ -150,6 +166,27 @@ export default function KeysPage() {
     }
   }
 
+  const handleSaveRetry = async (keyId: string) => {
+    setSavingRetry(true)
+    setRetryError('')
+    try {
+      const r = await fetch(`${apiUrl}/api/keys/${keyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ retryCount, timeoutMs: timeoutSec * 1000 }),
+      })
+      const data = await r.json()
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
+      setRetryKeyId(null)
+      loadKeys()
+    } catch (err: any) {
+      setRetryError(err.message)
+    } finally {
+      setSavingRetry(false)
+    }
+  }
+
   const getBudgetForKey = (keyId: string) => budgets.find((b) => b.apiKeyId === keyId)
 
   if (!isAuthenticated) {
@@ -174,13 +211,51 @@ export default function KeysPage() {
       {showForm && (
         <form onSubmit={handleCreate} className="mt-6 rounded-lg border border-neutral-800 p-6 space-y-4">
           <h2 className="font-medium">New API Key</h2>
-          <input
-            type="text"
-            value={newKeyName}
-            onChange={(e) => { setNewKeyName(e.target.value); setCreateError('') }}
-            placeholder="Key name (e.g. production)"
-            className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-2.5 text-sm focus:border-purple-500 focus:outline-none"
-          />
+          <div>
+            <label className="block text-sm text-neutral-400 mb-1.5">Key name</label>
+            <input
+              type="text"
+              value={newKeyName}
+              onChange={(e) => { setNewKeyName(e.target.value); setCreateError('') }}
+              placeholder="e.g. production"
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-2.5 text-sm focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-neutral-400 mb-1.5">
+                Retry count <span className="text-neutral-600">(0–5)</span>
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={5}
+                value={newKeyRetry}
+                onChange={(e) => setNewKeyRetry(Number(e.target.value))}
+                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-2.5 text-sm focus:border-purple-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-neutral-600">Retries on 429/5xx with exponential backoff</p>
+            </div>
+            <div>
+              <label className="block text-sm text-neutral-400 mb-1.5">
+                Timeout <span className="text-neutral-600">(5–60s)</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min={5}
+                  max={60}
+                  value={newKeyTimeout}
+                  onChange={(e) => setNewKeyTimeout(Number(e.target.value))}
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-2.5 text-sm focus:border-purple-500 focus:outline-none pr-8"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500">s</span>
+              </div>
+              <p className="mt-1 text-xs text-neutral-600">Per-request timeout before abort</p>
+            </div>
+          </div>
+
           {createError && <p className="text-sm text-red-400">{createError}</p>}
           <div className="flex gap-3">
             <button
@@ -215,7 +290,6 @@ export default function KeysPage() {
       )}
 
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
-
       {loading && <p className="mt-8 text-neutral-500">Loading...</p>}
 
       {!loading && keys.length === 0 && !showForm && (
@@ -230,6 +304,7 @@ export default function KeysPage() {
           {keys.map((key) => {
             const budget = getBudgetForKey(key.id)
             const isEditingBudget = budgetKeyId === key.id
+            const isEditingRetry = retryKeyId === key.id
             const spendPct = budget
               ? Math.min(100, (budget.currentSpendUsd / budget.monthlyLimitUsd) * 100)
               : 0
@@ -240,11 +315,25 @@ export default function KeysPage() {
                   <div>
                     <p className="font-medium">{key.name}</p>
                     <p className="text-sm text-neutral-500">
-                      {key.prefix}••• · Created {new Date(key.createdAt).toLocaleDateString()}
+                      {key.keyPrefix}••• · Created {new Date(key.createdAt).toLocaleDateString()}
                       {key.lastUsedAt && ` · Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`}
                     </p>
+                    <p className="text-xs text-neutral-600 mt-0.5">
+                      {key.retryCount ?? 2} retries · {((key.timeoutMs ?? 30000) / 1000)}s timeout
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <button
+                      onClick={() => {
+                        setRetryKeyId(isEditingRetry ? null : key.id)
+                        setRetryCount(key.retryCount ?? 2)
+                        setTimeoutSec((key.timeoutMs ?? 30000) / 1000)
+                        setRetryError('')
+                      }}
+                      className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-900 transition"
+                    >
+                      {isEditingRetry ? 'Cancel' : 'Retry/Timeout'}
+                    </button>
                     <button
                       onClick={() => {
                         setBudgetKeyId(isEditingBudget ? null : key.id)
@@ -264,6 +353,50 @@ export default function KeysPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Retry/Timeout edit */}
+                {isEditingRetry && (
+                  <div className="mt-3 pt-3 border-t border-neutral-800">
+                    <p className="text-sm text-neutral-400 mb-3">Retry &amp; Timeout settings</p>
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <label className="block text-xs text-neutral-500 mb-1">Retry count (0–5)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={5}
+                          value={retryCount}
+                          onChange={(e) => { setRetryCount(Number(e.target.value)); setRetryError('') }}
+                          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-neutral-500 mb-1">Timeout in seconds (5–60)</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min={5}
+                            max={60}
+                            value={timeoutSec}
+                            onChange={(e) => { setTimeoutSec(Number(e.target.value)); setRetryError('') }}
+                            className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none pr-7"
+                          />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-neutral-500">s</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleSaveRetry(key.id)}
+                        disabled={savingRetry}
+                        className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-500 transition disabled:opacity-50"
+                      >
+                        {savingRetry ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                    {retryError && <p className="mt-2 text-xs text-red-400">{retryError}</p>}
+                  </div>
+                )}
 
                 {/* Budget display */}
                 {budget && !isEditingBudget && (

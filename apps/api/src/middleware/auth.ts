@@ -35,5 +35,7 @@ export const authMiddleware = createMiddleware<AppContext>(async (c, next) => {
   )
   c.set('userId', keyRecord.userId)
   c.set('apiKeyId', keyRecord.id)
+  c.set('retryCount', keyRecord.retryCount ?? 2)
+  c.set('timeoutMs', keyRecord.timeoutMs ?? 30000)
   await next()
 })
