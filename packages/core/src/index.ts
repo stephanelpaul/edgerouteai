@@ -6,7 +6,12 @@ export { xaiAdapter } from './adapters/xai.js'
 export { getAdapter, getAllAdapters } from './adapters/registry.js'
 export type { ProviderAdapter } from './adapters/types.js'
 export { resolveRoute, type ResolvedRoute } from './router/resolver.js'
-export { autoRoute, type CostTier, type AutoRouteOptions, type AutoRouteResult } from './router/auto.js'
+export {
+	autoRoute,
+	type CostTier,
+	type AutoRouteOptions,
+	type AutoRouteResult,
+} from './router/auto.js'
 export { buildFallbackChain } from './router/fallback.js'
 export { proxyRequest, type ProxyRequestOptions, type ProxyResult } from './streaming/proxy.js'
 export { teeStream } from './streaming/tee.js'

@@ -1,25 +1,26 @@
 {
-  "name": "edgerouteai",
-  "private": true,
-  "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
-    "format": "biome format --write .",
-    "test": "turbo test",
-    "typecheck": "turbo typecheck",
-    "cli": "tsx scripts/cli.ts"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
-    "tsx": "^4.21.0",
-    "turbo": "^2.4.0",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
-  },
-  "packageManager": "pnpm@9.15.0",
-  "engines": {
-    "node": ">=20"
-  }
+	"name": "edgerouteai",
+	"private": true,
+	"scripts": {
+		"build": "turbo build",
+		"dev": "turbo dev",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
+		"test": "vitest run --config tests/vitest.config.ts",
+		"test:watch": "vitest --config tests/vitest.config.ts",
+		"typecheck": "turbo typecheck",
+		"cli": "tsx scripts/cli.ts"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.0",
+		"tsx": "^4.21.0",
+		"turbo": "^2.4.0",
+		"typescript": "^5.7.0",
+		"vitest": "^3.0.0"
+	},
+	"packageManager": "pnpm@9.15.0",
+	"engines": {
+		"node": ">=20"
+	}
 }

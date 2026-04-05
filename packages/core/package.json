@@ -1,30 +1,29 @@
 {
-  "name": "@edgerouteai/core",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./adapters/openai": "./src/adapters/openai.ts",
-    "./adapters/anthropic": "./src/adapters/anthropic.ts",
-    "./adapters/google": "./src/adapters/google.ts",
-    "./adapters/mistral": "./src/adapters/mistral.ts",
-    "./adapters/xai": "./src/adapters/xai.ts",
-    "./adapters/registry": "./src/adapters/registry.ts",
-    "./router/resolver": "./src/router/resolver.ts",
-    "./router/fallback": "./src/router/fallback.ts",
-    "./streaming/proxy": "./src/streaming/proxy.ts",
-    "./streaming/tee": "./src/streaming/tee.ts"
-  },
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@edgerouteai/shared": "workspace:*"
-  },
-  "devDependencies": {
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
-  }
+	"name": "@edgerouteai/core",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./adapters/openai": "./src/adapters/openai.ts",
+		"./adapters/anthropic": "./src/adapters/anthropic.ts",
+		"./adapters/google": "./src/adapters/google.ts",
+		"./adapters/mistral": "./src/adapters/mistral.ts",
+		"./adapters/xai": "./src/adapters/xai.ts",
+		"./adapters/registry": "./src/adapters/registry.ts",
+		"./router/resolver": "./src/router/resolver.ts",
+		"./router/fallback": "./src/router/fallback.ts",
+		"./streaming/proxy": "./src/streaming/proxy.ts",
+		"./streaming/tee": "./src/streaming/tee.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@edgerouteai/shared": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^5.7.0",
+		"vitest": "^3.0.0"
+	}
 }
