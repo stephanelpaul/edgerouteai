@@ -61,3 +61,23 @@ export const routingConfigs = sqliteTable('routing_configs', {
   isDefault: integer('is_default', { mode: 'boolean' }).default(false),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })
+
+export const modelAliases = sqliteTable('model_aliases', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  alias: text('alias').notNull(),
+  targetModel: text('target_model').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+}, (table) => [
+  uniqueIndex('model_aliases_user_alias_idx').on(table.userId, table.alias),
+])
+
+export const budgets = sqliteTable('budgets', {
+  id: text('id').primaryKey(),
+  apiKeyId: text('api_key_id').notNull().references(() => apiKeys.id),
+  monthlyLimitUsd: real('monthly_limit_usd').notNull(),
+  currentSpendUsd: real('current_spend_usd').notNull().default(0),
+  periodStart: integer('period_start', { mode: 'timestamp_ms' }).notNull(),
+  isDisabled: integer('is_disabled', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})

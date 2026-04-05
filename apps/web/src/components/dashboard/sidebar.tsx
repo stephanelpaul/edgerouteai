@@ -10,6 +10,7 @@ const navItems = [
   { href: '/dashboard/providers', label: 'Providers' },
   { href: '/dashboard/logs', label: 'Logs' },
   { href: '/dashboard/routing', label: 'Routing' },
+  { href: '/dashboard/aliases', label: 'Aliases' },
   { href: '/dashboard/settings', label: 'Settings' },
 ]
 

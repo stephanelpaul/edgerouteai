@@ -14,6 +14,8 @@ import { logsRoute } from './routes/logs.js'
 import { statsRoute } from './routes/stats.js'
 import { routingConfigsRoute } from './routes/routing-configs.js'
 import { authMeRoute } from './routes/auth-me.js'
+import { modelAliasesRoute } from './routes/model-aliases.js'
+import { budgetsRoute } from './routes/budgets.js'
 import type { AppContext } from './lib/env.js'
 
 const app = new Hono<AppContext>()
@@ -50,6 +52,8 @@ app.route('/api/logs', logsRoute)
 app.route('/api/stats', statsRoute)
 app.route('/api/routing', routingConfigsRoute)
 app.route('/api/account', authMeRoute)
+app.route('/api/aliases', modelAliasesRoute)
+app.route('/api/budgets', budgetsRoute)
 
 app.onError((err, c) => {
   if (err instanceof EdgeRouteError) return c.json(err.toJSON(), err.status as Parameters<typeof c.json>[1])

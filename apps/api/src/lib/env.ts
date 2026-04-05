@@ -1,6 +1,7 @@
 export interface Env {
   DB: D1Database
   RATE_LIMIT: KVNamespace
+  CACHE: KVNamespace
   ENCRYPTION_KEY: string
   ENVIRONMENT: string
 }

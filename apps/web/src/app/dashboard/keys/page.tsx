@@ -10,9 +10,20 @@ interface ApiKey {
   lastUsedAt?: string
 }
 
+interface Budget {
+  id: string
+  apiKeyId: string
+  apiKeyName: string
+  monthlyLimitUsd: number
+  currentSpendUsd: number
+  periodStart: string
+  isDisabled: boolean
+}
+
 export default function KeysPage() {
   const { apiUrl, isAuthenticated } = useAuth()
   const [keys, setKeys] = useState<ApiKey[]>([])
+  const [budgets, setBudgets] = useState<Budget[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -21,15 +32,24 @@ export default function KeysPage() {
   const [createError, setCreateError] = useState('')
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
+  const [budgetKeyId, setBudgetKeyId] = useState<string | null>(null)
+  const [budgetAmount, setBudgetAmount] = useState('')
+  const [savingBudget, setSavingBudget] = useState(false)
+  const [budgetError, setBudgetError] = useState('')
 
   const loadKeys = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const r = await fetch(`${apiUrl}/api/keys`, { credentials: 'include' })
-      const data = await r.json()
-      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
-      setKeys((data as any).keys ?? [])
+      const [keysRes, budgetsRes] = await Promise.all([
+        fetch(`${apiUrl}/api/keys`, { credentials: 'include' }),
+        fetch(`${apiUrl}/api/budgets`, { credentials: 'include' }),
+      ])
+      const keysData = await keysRes.json()
+      const budgetsData = await budgetsRes.json()
+      if (!keysRes.ok) throw new Error((keysData as any).error?.message ?? `Error ${keysRes.status}`)
+      setKeys((keysData as any).keys ?? [])
+      setBudgets((budgetsData as any).budgets ?? [])
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -85,6 +105,52 @@ export default function KeysPage() {
       setRevoking(null)
     }
   }
+
+  const handleSaveBudget = async (keyId: string) => {
+    const amount = parseFloat(budgetAmount)
+    if (!amount || amount <= 0) {
+      setBudgetError('Enter a valid dollar amount')
+      return
+    }
+    setSavingBudget(true)
+    setBudgetError('')
+    try {
+      const r = await fetch(`${apiUrl}/api/budgets/${keyId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ monthlyLimitUsd: amount }),
+      })
+      const data = await r.json()
+      if (!r.ok) throw new Error((data as any).error?.message ?? `Error ${r.status}`)
+      setBudgetKeyId(null)
+      setBudgetAmount('')
+      loadKeys()
+    } catch (err: any) {
+      setBudgetError(err.message)
+    } finally {
+      setSavingBudget(false)
+    }
+  }
+
+  const handleRemoveBudget = async (keyId: string) => {
+    if (!confirm('Remove budget limit for this key?')) return
+    try {
+      const r = await fetch(`${apiUrl}/api/budgets/${keyId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (!r.ok) {
+        const data = await r.json()
+        throw new Error((data as any).error?.message ?? `Error ${r.status}`)
+      }
+      loadKeys()
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
+
+  const getBudgetForKey = (keyId: string) => budgets.find((b) => b.apiKeyId === keyId)
 
   if (!isAuthenticated) {
     return <p className="text-neutral-500">Please sign in to access this page.</p>
@@ -161,24 +227,105 @@ export default function KeysPage() {
 
       {!loading && keys.length > 0 && (
         <div className="mt-8 space-y-3">
-          {keys.map((key) => (
-            <div key={key.id} className="flex items-center justify-between rounded-lg border border-neutral-800 p-4">
-              <div>
-                <p className="font-medium">{key.name}</p>
-                <p className="text-sm text-neutral-500">
-                  {key.prefix}••• · Created {new Date(key.createdAt).toLocaleDateString()}
-                  {key.lastUsedAt && ` · Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`}
-                </p>
+          {keys.map((key) => {
+            const budget = getBudgetForKey(key.id)
+            const isEditingBudget = budgetKeyId === key.id
+            const spendPct = budget
+              ? Math.min(100, (budget.currentSpendUsd / budget.monthlyLimitUsd) * 100)
+              : 0
+
+            return (
+              <div key={key.id} className="rounded-lg border border-neutral-800 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{key.name}</p>
+                    <p className="text-sm text-neutral-500">
+                      {key.prefix}••• · Created {new Date(key.createdAt).toLocaleDateString()}
+                      {key.lastUsedAt && ` · Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setBudgetKeyId(isEditingBudget ? null : key.id)
+                        setBudgetAmount(budget ? String(budget.monthlyLimitUsd) : '')
+                        setBudgetError('')
+                      }}
+                      className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-900 transition"
+                    >
+                      {isEditingBudget ? 'Cancel' : budget ? 'Edit Budget' : 'Set Budget'}
+                    </button>
+                    <button
+                      onClick={() => handleRevoke(key.id)}
+                      disabled={revoking === key.id}
+                      className="rounded-md border border-red-900 px-3 py-1.5 text-sm text-red-400 hover:bg-red-950/30 transition disabled:opacity-50"
+                    >
+                      {revoking === key.id ? 'Revoking...' : 'Revoke'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Budget display */}
+                {budget && !isEditingBudget && (
+                  <div className="mt-3 pt-3 border-t border-neutral-800">
+                    <div className="flex items-center justify-between text-sm mb-1.5">
+                      <span className="text-neutral-400">
+                        Monthly budget: ${budget.currentSpendUsd.toFixed(4)} / ${budget.monthlyLimitUsd.toFixed(2)}
+                      </span>
+                      {budget.isDisabled && (
+                        <span className="text-xs font-medium text-red-400 bg-red-950/40 px-2 py-0.5 rounded">
+                          Limit reached
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleRemoveBudget(key.id)}
+                        className="text-xs text-neutral-600 hover:text-neutral-400 transition"
+                      >
+                        Remove limit
+                      </button>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          spendPct >= 100 ? 'bg-red-500' : spendPct >= 80 ? 'bg-yellow-500' : 'bg-purple-500'
+                        }`}
+                        style={{ width: `${spendPct}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Budget edit form */}
+                {isEditingBudget && (
+                  <div className="mt-3 pt-3 border-t border-neutral-800">
+                    <p className="text-sm text-neutral-400 mb-2">Monthly spending limit (USD)</p>
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={budgetAmount}
+                          onChange={(e) => { setBudgetAmount(e.target.value); setBudgetError('') }}
+                          placeholder="10.00"
+                          className="pl-7 w-36 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleSaveBudget(key.id)}
+                        disabled={savingBudget}
+                        className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-500 transition disabled:opacity-50"
+                      >
+                        {savingBudget ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                    {budgetError && <p className="mt-2 text-xs text-red-400">{budgetError}</p>}
+                  </div>
+                )}
               </div>
-              <button
-                onClick={() => handleRevoke(key.id)}
-                disabled={revoking === key.id}
-                className="rounded-md border border-red-900 px-3 py-1.5 text-sm text-red-400 hover:bg-red-950/30 transition disabled:opacity-50"
-              >
-                {revoking === key.id ? 'Revoking...' : 'Revoke'}
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

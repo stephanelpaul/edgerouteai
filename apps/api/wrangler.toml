@@ -14,3 +14,7 @@ database_id = "5e45ce25-8ee8-4f0b-9a27-e51b89473ccd"
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
 id = "36cc04fc3de24cc3bc5ef0959943ade8"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "115f91957ebc4417bbc2d5a68311a801"
