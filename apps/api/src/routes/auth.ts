@@ -99,6 +99,10 @@ authRoute.post('/sign-up/email', async (c) => {
       return c.json({ error: { message: 'Email already in use', code: 'email_exists' } }, 409)
     }
 
+    // First user ever becomes superadmin
+    const userCount = await db.prepare('SELECT COUNT(*) as count FROM "user"').first<{ count: number }>()
+    const role = userCount?.count === 0 ? 'superadmin' : 'user'
+
     const userId = crypto.randomUUID()
     const accountId = crypto.randomUUID()
     const sessionId = crypto.randomUUID()
@@ -110,9 +114,9 @@ authRoute.post('/sign-up/email', async (c) => {
     // Insert into "user" table (Better Auth compatible)
     await db
       .prepare(
-        'INSERT INTO "user" ("id","name","email","emailVerified","createdAt","updatedAt") VALUES (?,?,?,1,?,?)',
+        'INSERT INTO "user" ("id","name","email","emailVerified","role","createdAt","updatedAt") VALUES (?,?,?,1,?,?,?)',
       )
-      .bind(userId, name, email, now, now)
+      .bind(userId, name, email, role, now, now)
       .run()
 
     // Insert into "account" table
@@ -146,8 +150,9 @@ authRoute.post('/sign-up/email', async (c) => {
     })
 
     return c.json({
-      user: { id: userId, name, email },
+      user: { id: userId, name, email, role },
       session: { token: sessionToken, expiresAt },
+      isFirstUser: role === 'superadmin',
     }, 201)
   } catch (err) {
     console.error('sign-up error:', err)
@@ -169,9 +174,9 @@ authRoute.post('/sign-in/email', async (c) => {
 
     // Find user
     const userRow = await db
-      .prepare('SELECT id, name, email FROM "user" WHERE email = ?')
+      .prepare('SELECT id, name, email, role FROM "user" WHERE email = ?')
       .bind(email)
-      .first<{ id: string; name: string; email: string }>()
+      .first<{ id: string; name: string; email: string; role: string }>()
 
     if (!userRow) {
       return c.json({ error: { message: 'Invalid email or password', code: 'invalid_credentials' } }, 401)
@@ -213,7 +218,7 @@ authRoute.post('/sign-in/email', async (c) => {
     })
 
     return c.json({
-      user: { id: userRow.id, name: userRow.name, email: userRow.email },
+      user: { id: userRow.id, name: userRow.name, email: userRow.email, role: userRow.role ?? 'user' },
       session: { token: sessionToken, expiresAt },
     })
   } catch (err) {
@@ -253,10 +258,10 @@ authRoute.get('/get-session', async (c) => {
 
     const now = Date.now()
     const row = await c.env.DB.prepare(
-      'SELECT s.id as sessionId, s.expiresAt, u.id as uid, u.name, u.email FROM "session" s JOIN "user" u ON s."userId" = u.id WHERE s.token = ? AND s.expiresAt > ?',
+      'SELECT s.id as sessionId, s.expiresAt, u.id as uid, u.name, u.email, u.role FROM "session" s JOIN "user" u ON s."userId" = u.id WHERE s.token = ? AND s.expiresAt > ?',
     )
       .bind(sessionToken, now)
-      .first<{ sessionId: string; expiresAt: number; uid: string; name: string; email: string }>()
+      .first<{ sessionId: string; expiresAt: number; uid: string; name: string; email: string; role: string }>()
 
     if (!row) {
       return c.json({ session: null, user: null })
@@ -264,7 +269,7 @@ authRoute.get('/get-session', async (c) => {
 
     return c.json({
       session: { id: row.sessionId, token: sessionToken, expiresAt: row.expiresAt },
-      user: { id: row.uid, name: row.name, email: row.email },
+      user: { id: row.uid, name: row.name, email: row.email, role: row.role ?? 'user' },
     })
   } catch (err) {
     console.error('get-session error:', err)

@@ -18,6 +18,7 @@ import { webhooksRoute } from './routes/webhooks.js'
 import { requestTransformsRoute } from './routes/request-transforms.js'
 import { exportRoute } from './routes/export.js'
 import { authRoute } from './routes/auth.js'
+import { adminRoute } from './routes/admin.js'
 import type { AppContext } from './lib/env.js'
 
 const app = new Hono<AppContext>()
@@ -51,6 +52,7 @@ app.route('/api/budgets', budgetsRoute)
 app.route('/api/webhooks', webhooksRoute)
 app.route('/api/transforms', requestTransformsRoute)
 app.route('/api/export', exportRoute)
+app.route('/api/admin', adminRoute)
 
 app.onError((err, c) => {
   if (err instanceof EdgeRouteError) return c.json(err.toJSON(), err.status as Parameters<typeof c.json>[1])

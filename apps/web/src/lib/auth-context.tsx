@@ -7,6 +7,7 @@ interface User {
   id: string
   email: string
   name: string | null
+  role: string
 }
 
 interface AuthContextType {
@@ -14,9 +15,11 @@ interface AuthContextType {
   apiKey: string | null
   apiUrl: string
   isAuthenticated: boolean
+  isAdmin: boolean
+  isSuperadmin: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  signup: (name: string, email: string, password: string) => Promise<void>
+  signup: (name: string, email: string, password: string) => Promise<{ isFirstUser?: boolean }>
   logout: () => Promise<void>
   setApiKey: (key: string | null) => void
 }
@@ -42,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const data = await res.json()
         if (data?.user) {
-          setUser({ id: data.user.id, email: data.user.email, name: data.user.name })
+          setUser({ id: data.user.id, email: data.user.email, name: data.user.name, role: data.user.role ?? 'user' })
         }
       }
     } catch {}
@@ -62,11 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const data = await res.json()
     if ((data as any).user) {
-      setUser({ id: (data as any).user.id, email: (data as any).user.email, name: (data as any).user.name })
+      setUser({ id: (data as any).user.id, email: (data as any).user.email, name: (data as any).user.name, role: (data as any).user.role ?? 'user' })
     }
   }
 
-  const signup = async (name: string, email: string, password: string) => {
+  const signup = async (name: string, email: string, password: string): Promise<{ isFirstUser?: boolean }> => {
     const res = await fetch(`${API_URL}/api/auth/sign-up/email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const data = await res.json()
     if ((data as any).user) {
-      setUser({ id: (data as any).user.id, email: (data as any).user.email, name: (data as any).user.name })
+      setUser({ id: (data as any).user.id, email: (data as any).user.email, name: (data as any).user.name, role: (data as any).user.role ?? 'user' })
       // Auto-create first API key
       try {
         const keyRes = await fetch(`${API_URL}/api/account/me/create-key`, {
@@ -92,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch {}
     }
+    return { isFirstUser: (data as any).isFirstUser ?? false }
   }
 
   const logout = async () => {
@@ -107,12 +111,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem('edgeroute-api-key')
   }
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  const isSuperadmin = user?.role === 'superadmin'
+
   return (
     <AuthContext.Provider value={{
       user,
       apiKey,
       apiUrl: API_URL,
       isAuthenticated: !!user,
+      isAdmin,
+      isSuperadmin,
       isLoading,
       login,
       signup,

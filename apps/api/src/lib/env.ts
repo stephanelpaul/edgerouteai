@@ -13,5 +13,6 @@ export interface AppContext {
     apiKeyId: string
     retryCount: number
     timeoutMs: number
+    role: string
   }
 }

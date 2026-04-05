@@ -16,8 +16,12 @@ export default function SignupPage() {
     setError('')
     setLoading(true)
     try {
-      await signup(name, email, password)
-      window.location.href = '/dashboard'
+      const result = await signup(name, email, password)
+      if (result?.isFirstUser) {
+        window.location.href = '/dashboard?welcome=superadmin'
+      } else {
+        window.location.href = '/dashboard'
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {

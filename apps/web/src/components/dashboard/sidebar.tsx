@@ -19,7 +19,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const { user, logout, isAdmin } = useAuth()
 
   return (
     <aside className="w-60 border-r border-neutral-800 bg-neutral-950 p-4 flex flex-col">
@@ -34,6 +34,12 @@ export function Sidebar() {
             </Link>
           )
         })}
+        {isAdmin && (
+          <Link href="/dashboard/admin"
+            className={`rounded-md px-3 py-2 text-sm transition mt-2 border-t border-neutral-800 pt-3 ${pathname === '/dashboard/admin' ? 'bg-neutral-800 text-white font-medium' : 'text-amber-400 hover:bg-neutral-900 hover:text-amber-300'}`}>
+            Admin
+          </Link>
+        )}
       </nav>
       {user && (
         <div className="border-t border-neutral-800 pt-4 mt-4">

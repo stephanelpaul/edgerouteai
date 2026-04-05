@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { useSearchParams } from 'next/navigation'
 
 interface Stats {
   totalRequests: number
@@ -23,6 +24,16 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const searchParams = useSearchParams()
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get('welcome') === 'superadmin') {
+      setShowWelcomeBanner(true)
+      // Remove the query param from the URL without reload
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -50,6 +61,15 @@ export default function DashboardPage() {
 
   return (
     <div>
+      {showWelcomeBanner && (
+        <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/10 px-5 py-4 flex items-start justify-between">
+          <div>
+            <p className="text-sm font-semibold text-amber-300">Welcome, Superadmin!</p>
+            <p className="text-sm text-amber-400/80 mt-0.5">You are the first user — you have been granted superadmin access. Set up your provider keys to get started.</p>
+          </div>
+          <button onClick={() => setShowWelcomeBanner(false)} className="ml-4 text-amber-400/60 hover:text-amber-300 text-lg leading-none">&times;</button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Overview</h1>

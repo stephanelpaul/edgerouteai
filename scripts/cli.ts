@@ -60,6 +60,9 @@ async function main() {
     case 'create-key':
       await createKey()
       break
+    case 'set-role':
+      await setRole()
+      break
     case 'deploy':
       await deploy()
       break
@@ -112,14 +115,20 @@ async function setup() {
   console.log('')
 }
 
-async function doCreateUser(name: string, email: string, password: string) {
+async function doCreateUser(name: string, email: string, password: string, role: string = 'user') {
   const userId = randomUUID()
   const accountId = randomUUID()
   const now = Date.now()
   const hashedPassword = hashPassword(password)
 
+  // Check if this is the first user (for setup command)
+  const countResult = d1Execute(`SELECT COUNT(*) as count FROM "user"`)
+  const countMatch = countResult.match(/"count"\s*:\s*(\d+)/)
+  const userCount = countMatch ? parseInt(countMatch[1], 10) : 1
+  const effectiveRole = userCount === 0 ? 'superadmin' : role
+
   // Create Better Auth user
-  d1Execute(`INSERT OR IGNORE INTO "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt") VALUES ('${userId}', '${name}', '${email}', 1, ${now}, ${now})`)
+  d1Execute(`INSERT OR IGNORE INTO "user" ("id", "name", "email", "emailVerified", "role", "createdAt", "updatedAt") VALUES ('${userId}', '${name}', '${email}', 1, '${effectiveRole}', ${now}, ${now})`)
 
   // Create Better Auth credential account
   d1Execute(`INSERT OR IGNORE INTO "account" ("id", "accountId", "providerId", "userId", "password", "createdAt", "updatedAt") VALUES ('${accountId}', '${userId}', 'credential', '${userId}', '${hashedPassword}', ${now}, ${now})`)
@@ -135,7 +144,7 @@ async function doCreateUser(name: string, email: string, password: string) {
 
   d1Execute(`INSERT INTO "api_keys" ("id", "user_id", "name", "key_hash", "key_prefix", "created_at") VALUES ('${keyId}', '${userId}', 'Default Key', '${keyHash}', '${keyPrefix}', ${now})`)
 
-  console.log(`✅ User created: ${email}`)
+  console.log(`✅ User created: ${email} (role: ${effectiveRole})`)
   console.log(`🔑 API Key (save this — shown only once): ${rawKey}`)
 }
 
@@ -143,13 +152,39 @@ async function createUser() {
   const email = getArg('email')
   const password = getArg('password')
   const name = getArg('name') || 'User'
+  const role = getArg('role') || 'user'
 
   if (!email || !password) {
-    console.error('Usage: pnpm cli create-user --email <email> --password <password> [--name <name>]')
+    console.error('Usage: pnpm cli create-user --email <email> --password <password> [--name <name>] [--role <role>]')
     process.exit(1)
   }
 
-  await doCreateUser(name, email, password)
+  if (!['superadmin', 'admin', 'user'].includes(role)) {
+    console.error('Invalid role. Must be one of: superadmin, admin, user')
+    process.exit(1)
+  }
+
+  await doCreateUser(name, email, password, role)
+}
+
+async function setRole() {
+  const email = getArg('email')
+  const role = getArg('role')
+
+  if (!email || !role) {
+    console.error('Usage: pnpm cli set-role --email <email> --role <role>')
+    console.error('Roles: superadmin, admin, user')
+    process.exit(1)
+  }
+
+  if (!['superadmin', 'admin', 'user'].includes(role)) {
+    console.error('Invalid role. Must be one of: superadmin, admin, user')
+    process.exit(1)
+  }
+
+  const now = Date.now()
+  d1Execute(`UPDATE "user" SET role = '${role}', "updatedAt" = ${now} WHERE email = '${email}'`)
+  console.log(`✅ Role set to "${role}" for ${email}`)
 }
 
 async function resetPassword() {
@@ -180,7 +215,7 @@ async function resetPassword() {
 }
 
 async function listUsers() {
-  const result = d1Execute(`SELECT id, email, name, createdAt FROM "user"`)
+  const result = d1Execute(`SELECT id, email, name, role, createdAt FROM "user" ORDER BY createdAt DESC`)
   console.log('\n👥 Users:\n')
 
   // Parse JSON from wrangler output
@@ -193,11 +228,11 @@ async function listUsers() {
         console.log('  No users found. Run "pnpm cli create-user" to create one.')
         return
       }
-      console.log('  ID                                    Email                     Name        Created')
-      console.log('  ' + '-'.repeat(90))
+      console.log('  ID                                    Email                     Name        Role         Created')
+      console.log('  ' + '-'.repeat(105))
       for (const row of rows) {
         const date = new Date(row.createdAt).toISOString().split('T')[0]
-        console.log(`  ${row.id}  ${row.email.padEnd(25)} ${(row.name || '-').padEnd(10)}  ${date}`)
+        console.log(`  ${row.id}  ${row.email.padEnd(25)} ${(row.name || '-').padEnd(10)}  ${(row.role || 'user').padEnd(12)} ${date}`)
       }
     }
   } catch {
@@ -264,12 +299,15 @@ Commands:
                      --email <email> --password <pw> [--name <name>]
 
   create-user        Create a new user with API key
-                     --email <email> --password <pw> [--name <name>]
+                     --email <email> --password <pw> [--name <name>] [--role <role>]
 
   reset-password     Reset a user's password
                      --email <email> --password <pw>
 
-  list-users         List all users
+  list-users         List all users (includes role column)
+
+  set-role           Set a user's role
+                     --email <email> --role <superadmin|admin|user>
 
   create-key         Create a new API key for a user
                      --email <email> [--name <key-name>]

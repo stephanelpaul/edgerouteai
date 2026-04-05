@@ -35,6 +35,10 @@ export const sessionOrKeyAuth = createMiddleware<AppContext>(async (c, next) => 
       c.set('apiKeyId', keyRecord.id)
       c.set('retryCount', keyRecord.retryCount ?? 2)
       c.set('timeoutMs', keyRecord.timeoutMs ?? 30000)
+      // Fetch user role for API key auth
+      const userRole = await c.env.DB.prepare('SELECT role FROM "user" WHERE id = ?')
+        .bind(keyRecord.userId).first<{ role: string }>()
+      c.set('role', userRole?.role ?? 'user')
       c.executionCtx.waitUntil(
         db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, keyRecord.id))
       )
@@ -49,16 +53,17 @@ export const sessionOrKeyAuth = createMiddleware<AppContext>(async (c, next) => 
   if (sessionToken) {
     const now = Date.now()
     const result = await c.env.DB.prepare(
-      'SELECT s."userId", s."expiresAt" FROM "session" s WHERE s."token" = ? AND s."expiresAt" > ?',
+      'SELECT s."userId", s."expiresAt", u."role" FROM "session" s JOIN "user" u ON s."userId" = u.id WHERE s."token" = ? AND s."expiresAt" > ?',
     )
       .bind(sessionToken, now)
-      .first<{ userId: string; expiresAt: number }>()
+      .first<{ userId: string; expiresAt: number; role: string }>()
 
     if (result) {
       c.set('userId', result.userId)
       c.set('apiKeyId', 'session')
       c.set('retryCount', 2)
       c.set('timeoutMs', 30000)
+      c.set('role', result.role ?? 'user')
       return next()
     }
   }
