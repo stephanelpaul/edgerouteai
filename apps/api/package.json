@@ -13,7 +13,7 @@
 		"@edgerouteai/core": "workspace:*",
 		"@edgerouteai/db": "workspace:*",
 		"@edgerouteai/shared": "workspace:*",
-		"hono": "^4.7.0",
+		"hono": "^4.12.14",
 		"drizzle-orm": "^0.38.0"
 	},
 	"devDependencies": {
