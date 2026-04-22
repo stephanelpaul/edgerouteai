@@ -6,6 +6,7 @@ import type { AppContext } from './lib/env.js'
 import { authMiddleware } from './middleware/auth.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
 import { sessionOrKeyAuth } from './middleware/session-auth.js'
+import { adminPlatformKeysRoute } from './routes/admin-platform-keys.js'
 import { adminRoute } from './routes/admin.js'
 import { apiKeysRoute } from './routes/api-keys.js'
 import { authMeRoute } from './routes/auth-me.js'
@@ -56,6 +57,7 @@ app.route('/api/webhooks', webhooksRoute)
 app.route('/api/transforms', requestTransformsRoute)
 app.route('/api/export', exportRoute)
 app.route('/api/admin', adminRoute)
+app.route('/api/admin/platform-keys', adminPlatformKeysRoute)
 
 app.onError((err, c) => {
 	if (err instanceof EdgeRouteError)
