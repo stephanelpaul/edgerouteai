@@ -1,4 +1,9 @@
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const root = resolve(__dirname, '..')
 
 export default defineConfig({
 	test: {
@@ -7,15 +12,12 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			'@edgerouteai/shared/models':
-				'/Users/stephanelpaul/Projects/edgerouteai/packages/shared/src/models',
-			'@edgerouteai/shared/pricing':
-				'/Users/stephanelpaul/Projects/edgerouteai/packages/shared/src/pricing',
-			'@edgerouteai/shared/errors':
-				'/Users/stephanelpaul/Projects/edgerouteai/packages/shared/src/errors',
-			'@edgerouteai/shared': '/Users/stephanelpaul/Projects/edgerouteai/packages/shared/src',
-			'@edgerouteai/core': '/Users/stephanelpaul/Projects/edgerouteai/packages/core/src',
-			'@edgerouteai/db': '/Users/stephanelpaul/Projects/edgerouteai/packages/db/src',
+			'@edgerouteai/shared/models': resolve(root, 'packages/shared/src/models'),
+			'@edgerouteai/shared/pricing': resolve(root, 'packages/shared/src/pricing'),
+			'@edgerouteai/shared/errors': resolve(root, 'packages/shared/src/errors'),
+			'@edgerouteai/shared': resolve(root, 'packages/shared/src'),
+			'@edgerouteai/core': resolve(root, 'packages/core/src'),
+			'@edgerouteai/db': resolve(root, 'packages/db/src'),
 		},
 	},
 })

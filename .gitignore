@@ -8,4 +8,5 @@ out/
 .env.local
 .dev.vars
 *.log
+*.tsbuildinfo
 .DS_Store

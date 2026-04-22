@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		})
 		if (!res.ok) {
 			const data = await res.json().catch(() => ({}))
-			throw new Error((data as any).message ?? 'Login failed')
+			throw new Error((data as any).error?.message ?? (data as any).message ?? 'Login failed')
 		}
 		const data = await res.json()
 		if ((data as any).user) {
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		})
 		if (!res.ok) {
 			const data = await res.json().catch(() => ({}))
-			throw new Error((data as any).message ?? 'Signup failed')
+			throw new Error((data as any).error?.message ?? (data as any).message ?? 'Signup failed')
 		}
 		const data = await res.json()
 		if ((data as any).user) {
