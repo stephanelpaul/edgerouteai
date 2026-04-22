@@ -7,12 +7,14 @@ import {
 	requestLogs,
 	requestTransforms,
 	routingConfigs,
+	usageLedger,
 	webhooks,
 } from '@edgerouteai/db'
 import {
 	type ChatCompletionChunk,
 	type ChatCompletionRequest,
 	EdgeRouteError,
+	InsufficientCreditsError,
 	ModelNotFoundError,
 	ProviderError,
 	ProviderKeyMissingError,
@@ -20,8 +22,10 @@ import {
 } from '@edgerouteai/shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
+import { attemptDebit, computeMarkupCents, getBalanceCents } from '../lib/credits.js'
 import { decrypt } from '../lib/crypto.js'
 import type { AppContext } from '../lib/env.js'
+import { getPlatformKeyFor } from '../lib/platform-keys.js'
 
 const proxy = new Hono<AppContext>()
 
@@ -224,6 +228,11 @@ proxy.post('/v1/chat/completions', async (c) => {
 	const fallbackModels: string[] = config ? JSON.parse(config.fallbackChain) : []
 	const chain = buildFallbackChain(resolvedModel, fallbackModels)
 
+	// Read credit balance once up-front. The platform-key fallback path uses
+	// this as an advisory pre-check; the authoritative guard is the atomic
+	// UPDATE inside attemptDebit() after the request completes.
+	const balanceCents = await getBalanceCents(db, userId)
+
 	let lastError: Error | null = null
 
 	for (const route of chain) {
@@ -232,19 +241,35 @@ proxy.post('/v1/chat/completions', async (c) => {
 			.from(providerKeys)
 			.where(eq(providerKeys.userId, userId))
 		const providerKeysList = allProviderKeys.filter((r) => r.provider === route.provider)
-		if (providerKeysList.length === 0) {
-			lastError = new ProviderKeyMissingError(route.provider)
-			continue
-		}
-		// Load balance: random selection distributes load across multiple keys
-		const keyIndex = Math.floor(Math.random() * providerKeysList.length)
-		const pk = providerKeysList[keyIndex]
 
-		const apiKey = await decrypt(
-			pk.encryptedKey as unknown as ArrayBuffer,
-			pk.iv as unknown as Uint8Array,
-			c.env.ENCRYPTION_KEY,
-		)
+		let apiKey: string
+		let usedPlatformKey = false
+
+		if (providerKeysList.length === 0) {
+			// No BYOK for this provider — try a platform-managed key if the user
+			// has a positive balance. Platform-key usage is metered + charged
+			// with the 2.5% markup; BYOK stays zero-markup.
+			const platformKey = await getPlatformKeyFor(db, route.provider, c.env.ENCRYPTION_KEY)
+			if (!platformKey) {
+				lastError = new ProviderKeyMissingError(route.provider)
+				continue
+			}
+			if (balanceCents <= 0) {
+				lastError = new InsufficientCreditsError()
+				continue
+			}
+			apiKey = platformKey
+			usedPlatformKey = true
+		} else {
+			// Load balance: random selection distributes load across multiple keys
+			const keyIndex = Math.floor(Math.random() * providerKeysList.length)
+			const pk = providerKeysList[keyIndex]
+			apiKey = await decrypt(
+				pk.encryptedKey as unknown as ArrayBuffer,
+				pk.iv as unknown as Uint8Array,
+				c.env.ENCRYPTION_KEY,
+			)
+		}
 
 		try {
 			const startTime = Date.now()
@@ -285,8 +310,9 @@ proxy.post('/v1/chat/completions', async (c) => {
 						const modelString = `${route.provider}/${route.modelId}`
 						const costUsd = calculateCost(modelString, usage.prompt_tokens, usage.completion_tokens)
 
+						const logId = crypto.randomUUID()
 						await db.insert(requestLogs).values({
-							id: crypto.randomUUID(),
+							id: logId,
 							userId,
 							apiKeyId,
 							provider: route.provider,
@@ -298,6 +324,55 @@ proxy.post('/v1/chat/completions', async (c) => {
 							statusCode: 200,
 							createdAt: new Date(),
 						})
+
+						// Platform-key path: compute markup, debit the user's credit balance
+						// atomically, and record the ledger entry. BYOK path is unchanged
+						// (zero-markup, no ledger).
+						if (usedPlatformKey) {
+							const costCents = Math.ceil((costUsd ?? 0) * 100)
+							const markupCents = computeMarkupCents(costCents)
+							const totalDebited = costCents + markupCents
+							const debited = await attemptDebit(db, userId, totalDebited)
+							await db.insert(usageLedger).values({
+								id: crypto.randomUUID(),
+								userId,
+								requestLogId: logId,
+								costCents,
+								markupCents,
+								totalDebitedCents: debited ? totalDebited : 0,
+								createdAt: new Date(),
+							})
+							if (!debited) {
+								// Balance went negative mid-request (race with a concurrent
+								// request). Fire credits.exhausted so the user/agent knows.
+								const userWebhooks = await db
+									.select()
+									.from(webhooks)
+									.where(and(eq(webhooks.userId, userId), eq(webhooks.isActive, true)))
+								const payload = JSON.stringify({
+									event: 'credits.exhausted',
+									data: {
+										userId,
+										triedDebitCents: totalDebited,
+										timestamp: new Date().toISOString(),
+									},
+								})
+								for (const wh of userWebhooks) {
+									const events = JSON.parse(wh.events)
+									if (events.includes('credits.exhausted')) {
+										const signature = wh.secret ? await hmacSign(payload, wh.secret) : undefined
+										fetch(wh.url, {
+											method: 'POST',
+											headers: {
+												'Content-Type': 'application/json',
+												...(signature ? { 'X-EdgeRoute-Signature': signature } : {}),
+											},
+											body: payload,
+										}).catch(() => {})
+									}
+								}
+							}
+						}
 
 						// Update budget spend
 						if (budget) {
