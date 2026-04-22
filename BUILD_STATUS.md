@@ -19,39 +19,45 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**Phase 0 — Prep.** Writing spec, plan, status doc, license split, branching strategy.
+**Phase 2 — Gateway platform-key fallback + metering.** Starting next.
 
-**% complete:** ~30% (spec done, plan next)
+**% complete:** ~15% of overall 14-day window
 
 ## Phase progress
 
 | # | Phase | Status | Branch | PR |
 |---|-------|--------|--------|-----|
-| 0 | Prep: spec, plan, license, status doc | in progress | `main` | — |
-| 1 | Schema + credits tables | pending | `feat/credits-schema` | — |
-| 2 | Gateway platform-key fallback + metering | pending | `feat/platform-keys` | — |
-| 3 | Stripe billing (test mode) | pending | `feat/billing` | — |
+| 0 | Prep: spec, plan, license, status doc | ✅ done | `main` | merged (2f95390) |
+| 1 | Schema + credits tables | ✅ done | `feat/credits-schema` | [#5](https://github.com/stephanelpaul/edgerouteai/pull/5) draft |
+| 2 | Gateway platform-key fallback + metering | **in progress** | `feat/platform-keys` | — |
+| 3 | Polar billing worker (proprietary `apps/billing`) | pending | `feat/billing` | — |
 | 4 | MCP HTTP server | pending | `feat/mcp` | — |
 | 5 | MCP stdio shim | pending | `feat/mcp-stdio` | — |
 | 6 | Cost-aware router | pending | `feat/cost-router` | — |
-| 7 | License + README + docs | pending | `main` (small) | — |
-| 8 | Polish + integration tests + HANDOFF.md | pending | per-branch | — |
+| 7 | Polish + integration tests + HANDOFF.md | pending | per-branch | — |
 
 ## Recent activity (newest first)
 
+- `8cf072b` feat(db): add platform keys, credits, usage ledger, and payment events schema (PR #5)
+- `2f95390` chore: split license into FSL-1.1 (gateway) and proprietary (dashboard)
+- `c725e52` docs: add 14-day implementation plan for SaaS pivot
+- `c0cf856` docs: add BUILD_STATUS.md as remote-check dashboard for autonomous build
 - `d09ff7d` docs: add autonomous-build design spec for SaaS pivot
 
 ## Decisions I made
 
 *Default assumptions noted so you can correct on return. I'll flip these if you say so.*
 
-- **License:** FSL-1.1 (Functional Source License, 2-year → Apache 2.0 conversion). Applied to gateway, core, MCP, db, shared, auth packages. Dashboard (`apps/web`) gets proprietary "all rights reserved, source-available for audit" notice. **Revert if:** you prefer BSL-1.1 or Elastic License v2 — just rename the LICENSE files.
+- **License:** FSL-1.1 (Functional Source License, 2-year → Apache 2.0 conversion). Applied to gateway, core, MCP, db, shared, auth packages. Dashboard (`apps/web`) gets proprietary "all rights reserved, source-available for audit" notice.
 - **Markup:** 2.5% computed as `ceil(costCents * 0.025)` per request. Applied only when a platform key was used; BYOK stays zero-markup.
-- **Credit pack sizes:** $5 / $20 / $50 / $100, one-time, no expiry. Configured as 4 separate Stripe Products (not a single dynamic-amount Product) because Stripe Checkout prefers Products for one-time payments.
+- **Credit pack sizes:** $5 / $20 / $50 / $100, one-time, no expiry.
+- **Payment provider:** **Polar (not Stripe)** — you told me. All Polar integration lives in a new proprietary `apps/billing` Worker, separate from the open gateway. This keeps your payment integration details out of the FSL-licensed tree.
+- **Billing-split architecture:** New `apps/billing` proprietary Worker handles Polar checkout + webhook + credit topup. Open gateway (`apps/api`) handles credit *decrement* and platform-key fallback only. Transparent decrements, private increments.
 - **MCP transport primary:** Streamable HTTP (single POST + SSE upgrade), hosted at `mcp.edgerouteai.com`. stdio shim is a thin proxy to the same endpoint — not a standalone MCP server.
 - **Atomicity for credit decrement:** Using D1 `UPDATE ... WHERE balance_cents >= ?` guarded write. No Durable Objects needed at MVP scale.
-- **Stripe idempotency:** Using the `stripeEvents` D1 table keyed on Stripe's `event.id`. No KV (D1 is authoritative; KV would drift).
+- **Payment idempotency:** Using `payment_events` D1 table keyed on provider `event.id` (Polar today, provider-agnostic by design).
 - **Schema migrations:** New tables only. No backfills, no existing-column changes. Backwards compatible.
+- **Provider-keys label column:** Schema declared `label` but snapshot was stale, so the Drizzle generator re-detected it as missing even though migration 0003 already added it. Stripped the redundant ALTER TABLE from migration 0004; added a note in the SQL file explaining why.
 
 ## Questions for you (check on return)
 
@@ -67,14 +73,14 @@ I noticed these uncommitted changes on `main` when I started — they look like 
 
 ## Handoff checklist (growing — things that need your hands on return)
 
-- [ ] Create Stripe live-mode Products for $5/$20/$50/$100 credit packs; copy Price IDs into Worker secrets
-- [ ] `wrangler secret put STRIPE_SECRET_KEY` (live mode)
-- [ ] `wrangler secret put STRIPE_WEBHOOK_SECRET` (live mode endpoint)
-- [ ] Add `mcp.edgerouteai.com` DNS record → Cloudflare Worker route
-- [ ] `wrangler deploy` for api + mcp workers
+- [ ] Create 4 Polar Products ($5/$20/$50/$100 credit packs); copy Product IDs into `apps/billing` Worker secrets
+- [ ] `wrangler secret put POLAR_ACCESS_TOKEN` (in `apps/billing`)
+- [ ] `wrangler secret put POLAR_WEBHOOK_SECRET` (in `apps/billing`)
+- [ ] Add `mcp.edgerouteai.com` + `billing.edgerouteai.com` DNS records → Cloudflare Worker routes
+- [ ] `wrangler deploy` for api + mcp + billing workers
 - [ ] `pnpm --filter @edgerouteai/web deploy` for dashboard
 - [ ] Review + merge each `feat/*` draft PR
 - [ ] `cd packages/mcp-stdio && npm publish --access public` (once npm org is claimed)
-- [ ] Real-money smoke test: sign up, top up $5, make a chat call, verify balance decrements
+- [ ] Real-money smoke test: sign up, top up $5 via Polar, make a chat call, verify balance decrements
 
 _(More items will land here as I build.)_
