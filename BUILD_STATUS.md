@@ -19,9 +19,11 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**Phase 4 — MCP HTTP server.** Starting next.
+**Phase 4 DONE. Pausing session here.** Phase 5 (mcp-stdio) and Phase 6 (cost-aware router) queued for the next session.
 
-**% complete:** ~45% of overall 14-day window
+**% complete:** ~60% of overall 14-day window. 4 of 7 phases shipped as draft PRs; 174 tests passing; all 8 workspaces typecheck green.
+
+👉 **See [HANDOFF.md](HANDOFF.md) for everything you need to do on return** (Polar setup, Cloudflare secrets, DNS, deploy order, smoke-test steps).
 
 ## Phase progress
 
@@ -31,13 +33,14 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 | 1 | Schema + credits tables | ✅ done | `feat/credits-schema` | [#5](https://github.com/stephanelpaul/edgerouteai/pull/5) draft |
 | 2 | Gateway platform-key fallback + metering | ✅ done | `feat/platform-keys` | [#6](https://github.com/stephanelpaul/edgerouteai/pull/6) draft |
 | 3 | Polar billing worker (proprietary `apps/billing`) | ✅ done | `feat/billing` | [#7](https://github.com/stephanelpaul/edgerouteai/pull/7) draft |
-| 4 | MCP HTTP server | **in progress** | `feat/mcp` | — |
-| 5 | MCP stdio shim | pending | `feat/mcp-stdio` | — |
-| 6 | Cost-aware router | pending | `feat/cost-router` | — |
-| 7 | Polish + integration tests + HANDOFF.md | pending | per-branch | — |
+| 4 | MCP HTTP server | ✅ done | `feat/mcp` | [#8](https://github.com/stephanelpaul/edgerouteai/pull/8) draft |
+| 5 | MCP stdio shim | queued | `feat/mcp-stdio` | — |
+| 6 | Cost-aware router | queued | `feat/cost-router` | — |
+| 7 | Polish + integration tests | queued | per-branch | — |
 
 ## Recent activity (newest first)
 
+- `d1e2254` feat(mcp): add MCP HTTP server worker at mcp.edgerouteai.com (PR #8)
 - `4d89e2f` feat(billing,web): add proprietary Polar billing worker + dashboard page (PR #7)
 - `7425eb6` feat(api): add platform-key fallback with atomic credit decrement (PR #6)
 - `8cf072b` feat(db): add platform keys, credits, usage ledger, and payment events schema (PR #5)
