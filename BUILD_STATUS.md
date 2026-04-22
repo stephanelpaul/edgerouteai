@@ -19,9 +19,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**Phase 3 — Polar billing worker.** Starting next.
+**Phase 4 — MCP HTTP server.** Starting next.
 
-**% complete:** ~30% of overall 14-day window
+**% complete:** ~45% of overall 14-day window
 
 ## Phase progress
 
@@ -30,14 +30,15 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 | 0 | Prep: spec, plan, license, status doc | ✅ done | `main` | merged (2f95390) |
 | 1 | Schema + credits tables | ✅ done | `feat/credits-schema` | [#5](https://github.com/stephanelpaul/edgerouteai/pull/5) draft |
 | 2 | Gateway platform-key fallback + metering | ✅ done | `feat/platform-keys` | [#6](https://github.com/stephanelpaul/edgerouteai/pull/6) draft |
-| 3 | Polar billing worker (proprietary `apps/billing`) | **in progress** | `feat/billing` | — |
-| 4 | MCP HTTP server | pending | `feat/mcp` | — |
+| 3 | Polar billing worker (proprietary `apps/billing`) | ✅ done | `feat/billing` | [#7](https://github.com/stephanelpaul/edgerouteai/pull/7) draft |
+| 4 | MCP HTTP server | **in progress** | `feat/mcp` | — |
 | 5 | MCP stdio shim | pending | `feat/mcp-stdio` | — |
 | 6 | Cost-aware router | pending | `feat/cost-router` | — |
 | 7 | Polish + integration tests + HANDOFF.md | pending | per-branch | — |
 
 ## Recent activity (newest first)
 
+- `4d89e2f` feat(billing,web): add proprietary Polar billing worker + dashboard page (PR #7)
 - `7425eb6` feat(api): add platform-key fallback with atomic credit decrement (PR #6)
 - `8cf072b` feat(db): add platform keys, credits, usage ledger, and payment events schema (PR #5)
 - `2f95390` chore: split license into FSL-1.1 (gateway) and proprietary (dashboard)
