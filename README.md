@@ -84,4 +84,9 @@ packages/shared — Types, models, pricing
 
 ## License
 
-MIT
+EdgeRouteAI uses a **split license** model:
+
+- **Gateway, core, MCP server, and SDK packages** (`apps/api`, `apps/mcp`, `packages/*`) are licensed under the [Functional Source License, Version 1.1, Apache 2.0 Future License (FSL-1.1-Apache-2.0)](./LICENSE). You may use, modify, and redistribute these packages for any Permitted Purpose — including self-hosting as part of your own app with your own margin on keys. The only excluded use is offering a substantially-similar hosted service that competes with EdgeRouteAI. Two years after each release, the code automatically converts to Apache 2.0.
+- **Dashboard** (`apps/web`) is a **proprietary** application. See [`apps/web/LICENSE`](./apps/web/LICENSE). Source is available for audit and review only; self-hosting the dashboard requires a separate agreement.
+
+If you want the managed experience (hosted dashboard + platform keys + credits), use [edgerouteai.com](https://edgerouteai.com). If you want to embed the gateway in your own app, self-host it — that's what FSL is for.
