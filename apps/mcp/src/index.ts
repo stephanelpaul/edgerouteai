@@ -49,7 +49,9 @@ app.onError((err, c) => {
 	}
 	console.error('mcp unhandled error:', err)
 	return c.json(
-		{ error: { message: 'Internal server error', code: 'internal_error', type: 'edgeroute_error' } },
+		{
+			error: { message: 'Internal server error', code: 'internal_error', type: 'edgeroute_error' },
+		},
 		500,
 	)
 })

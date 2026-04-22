@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import type { McpEnv } from '../../apps/mcp/src/env'
 import { handleRpc } from '../../apps/mcp/src/rpc'
 import { TOOLS } from '../../apps/mcp/src/tools'
-import type { McpEnv } from '../../apps/mcp/src/env'
 
 function mockEnv(): McpEnv {
 	// Most tests don't touch env; when they do we give an empty-ish fake.

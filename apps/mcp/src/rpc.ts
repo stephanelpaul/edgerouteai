@@ -1,12 +1,6 @@
 import { EdgeRouteError } from '@edgerouteai/shared'
-import {
-	TOOLS,
-	callAutoSelectModel,
-	callChat,
-	callGetUsage,
-	callListModels,
-} from './tools.js'
 import type { McpEnv } from './env.js'
+import { TOOLS, callAutoSelectModel, callChat, callGetUsage, callListModels } from './tools.js'
 
 // JSON-RPC 2.0 types — minimal subset we actually use.
 interface JsonRpcRequest {
@@ -86,7 +80,9 @@ export async function handleRpc(opts: {
 				return success(id, { tools: TOOLS })
 
 			case 'tools/call': {
-				const params = req.params as { name?: string; arguments?: Record<string, unknown> } | undefined
+				const params = req.params as
+					| { name?: string; arguments?: Record<string, unknown> }
+					| undefined
 				const name = params?.name
 				const args = params?.arguments ?? {}
 				if (!name) {
@@ -135,7 +131,10 @@ async function dispatchTool(opts: {
 				apiKey,
 				body: {
 					model: body.model,
-					messages: body.messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+					messages: body.messages as Array<{
+						role: 'system' | 'user' | 'assistant'
+						content: string
+					}>,
 					temperature: body.temperature,
 					max_tokens: body.max_tokens,
 				},

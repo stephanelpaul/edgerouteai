@@ -5,7 +5,7 @@ import {
 	requestLogs,
 	userCredits,
 } from '@edgerouteai/db'
-import { MODELS, PRICING, type ChatMessage } from '@edgerouteai/shared'
+import { type ChatMessage, MODELS, PRICING } from '@edgerouteai/shared'
 import { desc, eq, gte } from 'drizzle-orm'
 import type { McpEnv } from './env.js'
 
@@ -53,7 +53,7 @@ export const TOOLS = [
 	{
 		name: 'get_usage',
 		description:
-			'Return current credit balance, today\'s spend, and last-7-days spend. Useful for autonomous agents checking whether they can afford the next request.',
+			"Return current credit balance, today's spend, and last-7-days spend. Useful for autonomous agents checking whether they can afford the next request.",
 		inputSchema: { type: 'object', properties: {} },
 	},
 	{
@@ -65,7 +65,8 @@ export const TOOLS = [
 			properties: {
 				task: {
 					type: 'string',
-					description: 'Natural-language description of the task (e.g. "write a Python function to parse CSV").',
+					description:
+						'Natural-language description of the task (e.g. "write a Python function to parse CSV").',
 				},
 			},
 			required: ['task'],
@@ -147,7 +148,12 @@ export async function callListModels(args: { env: McpEnv; userId: string }) {
 	}))
 
 	return {
-		content: [{ type: 'text', text: JSON.stringify({ models, byok_providers: [...byokProviders] }, null, 2) }],
+		content: [
+			{
+				type: 'text',
+				text: JSON.stringify({ models, byok_providers: [...byokProviders] }, null, 2),
+			},
+		],
 		byok_providers: [...byokProviders],
 		total_models: models.length,
 	}
