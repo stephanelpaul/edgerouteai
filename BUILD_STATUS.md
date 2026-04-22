@@ -19,9 +19,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**Phase 2 — Gateway platform-key fallback + metering.** Starting next.
+**Phase 3 — Polar billing worker.** Starting next.
 
-**% complete:** ~15% of overall 14-day window
+**% complete:** ~30% of overall 14-day window
 
 ## Phase progress
 
@@ -29,8 +29,8 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 |---|-------|--------|--------|-----|
 | 0 | Prep: spec, plan, license, status doc | ✅ done | `main` | merged (2f95390) |
 | 1 | Schema + credits tables | ✅ done | `feat/credits-schema` | [#5](https://github.com/stephanelpaul/edgerouteai/pull/5) draft |
-| 2 | Gateway platform-key fallback + metering | **in progress** | `feat/platform-keys` | — |
-| 3 | Polar billing worker (proprietary `apps/billing`) | pending | `feat/billing` | — |
+| 2 | Gateway platform-key fallback + metering | ✅ done | `feat/platform-keys` | [#6](https://github.com/stephanelpaul/edgerouteai/pull/6) draft |
+| 3 | Polar billing worker (proprietary `apps/billing`) | **in progress** | `feat/billing` | — |
 | 4 | MCP HTTP server | pending | `feat/mcp` | — |
 | 5 | MCP stdio shim | pending | `feat/mcp-stdio` | — |
 | 6 | Cost-aware router | pending | `feat/cost-router` | — |
@@ -38,6 +38,7 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Recent activity (newest first)
 
+- `7425eb6` feat(api): add platform-key fallback with atomic credit decrement (PR #6)
 - `8cf072b` feat(db): add platform keys, credits, usage ledger, and payment events schema (PR #5)
 - `2f95390` chore: split license into FSL-1.1 (gateway) and proprietary (dashboard)
 - `c725e52` docs: add 14-day implementation plan for SaaS pivot
