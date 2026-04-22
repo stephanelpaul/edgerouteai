@@ -1,9 +1,11 @@
 # BUILD_STATUS — Autonomous Build Dashboard
 
 **Started:** 2026-04-22
-**Deadline:** 2026-05-06 (14 days)
+**Deadline:** 2026-05-17 (25 days — scope expanded past original 14-day budget after user added smart-router, 6 new providers, observability, guardrails, docs, landing page, chatbot integrations, easy-setup polish)
 **Spec:** [docs/superpowers/specs/2026-04-22-autonomous-build-design.md](docs/superpowers/specs/2026-04-22-autonomous-build-design.md)
 **Mode:** User is away; I work autonomously. All code lands on `feat/*` branches with draft PRs against `main`. Nothing deployed to production.
+
+**Pricing model locked:** BYOK free for first 1K requests/month, then $0.0001/request debited from credits. Platform-key requests always pay fee + 2.5% markup on provider cost. Self-hosted: no fees (FSL license).
 
 ## How to remote-check
 
@@ -19,9 +21,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**5 PRs open, all CI green.** Phase 5 (mcp-stdio) and Phase 6 (cost-aware router) still queued.
+**Scope expanded to 25-day window (2026-05-17).** 5 PRs open and all CI green; 11 more phases queued.
 
-**% complete:** ~75% of overall 14-day window. 5 feature PRs shipped + CI fixes on main; 174 tests passing; all 8 workspaces typecheck green; all PR CI checks green.
+**% complete:** ~40% of overall 25-day window. 5 feature PRs + CI fixes shipped; 174 tests passing; all 8 workspaces typecheck green; all PR CI checks green.
 
 👉 **See [HANDOFF.md](HANDOFF.md) for everything you need to do on return** (Polar setup, Cloudflare secrets, DNS, deploy order, smoke-test steps).
 
@@ -35,9 +37,17 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 | 3 | Polar billing worker (proprietary `apps/billing`) | ✅ done | `feat/billing` | [#7](https://github.com/stephanelpaul/edgerouteai/pull/7) draft ✅ CI |
 | 4 | MCP HTTP server | ✅ done | `feat/mcp` | [#8](https://github.com/stephanelpaul/edgerouteai/pull/8) draft ✅ CI |
 | 4b | Superadmin UI for platform keys | ✅ done | `feat/platform-keys-admin` | [#9](https://github.com/stephanelpaul/edgerouteai/pull/9) draft ✅ CI |
-| 5 | MCP stdio shim | queued | `feat/mcp-stdio` | — |
-| 6 | Cost-aware router | queued | `feat/cost-router` | — |
-| 7 | Polish + integration tests | queued | per-branch | — |
+| 5 | MCP stdio shim | **in progress** | `feat/mcp-stdio` | — |
+| 6 | Smart router (LLM classifier + context guard + failure tracking + cost-aware) | queued | `feat/smart-router` | — |
+| 7 | 3 providers: Cloudflare Workers AI, Together, Groq | queued | `feat/providers-1` | — |
+| 8 | 3 providers: Cohere, Ollama, Azure OpenAI | queued | `feat/providers-2` | — |
+| 9 | BYOK platform fee (hybrid: 1K free/mo then $0.0001/req) | queued | `feat/byok-fee` | — |
+| 10 | Observability (OTel, dashboard analytics, per-req webhook, Langfuse/Helicone relay) | queued | `feat/observability` | — |
+| 11 | Guardrails (PII regex, keyword, LLM classifier, webhook veto) | queued | `feat/guardrails` | — |
+| 12 | Landing page polish | queued | `feat/landing` | — |
+| 13 | Docs site + content + chatbot integrations | queued | `feat/docs` | — |
+| 14 | Easy-setup polish (config generator, onboarding wizard) | queued | `feat/onboarding` | — |
+| 15 | Polish + integration tests | queued | per-branch | — |
 
 ## Recent activity (newest first)
 
