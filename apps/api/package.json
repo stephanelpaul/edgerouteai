@@ -15,7 +15,7 @@
 		"@edgerouteai/db": "workspace:*",
 		"@edgerouteai/shared": "workspace:*",
 		"hono": "^4.7.0",
-		"drizzle-orm": "^0.38.0"
+		"drizzle-orm": "^0.45.2"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20250327.0",
