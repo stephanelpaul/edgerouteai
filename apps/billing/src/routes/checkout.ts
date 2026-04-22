@@ -11,11 +11,7 @@ checkoutRoute.post('/', async (c) => {
 	const body = (await c.req.json().catch(() => ({}))) as { packUsd?: number | string }
 	const packUsd = Number(body.packUsd)
 	if (!isValidPackSize(packUsd)) {
-		throw new EdgeRouteError(
-			'Invalid pack. Allowed: 5, 20, 50, 100.',
-			'invalid_pack',
-			400,
-		)
+		throw new EdgeRouteError('Invalid pack. Allowed: 5, 20, 50, 100.', 'invalid_pack', 400)
 	}
 	const userId = c.get('userId')
 	const db = createDb(c.env.DB)

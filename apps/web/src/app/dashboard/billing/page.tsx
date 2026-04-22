@@ -122,8 +122,7 @@ export default function BillingPage() {
 			<div className="mt-10">
 				<h2 className="text-lg font-medium">Add credits</h2>
 				<p className="mt-1 text-sm text-neutral-500">
-					Credits never expire. 2.5% markup is applied on platform-key requests; BYOK has no
-					markup.
+					Credits never expire. 2.5% markup is applied on platform-key requests; BYOK has no markup.
 				</p>
 				<div className="mt-4 grid gap-3 sm:grid-cols-4">
 					{PACK_SIZES.map((pack) => (
@@ -169,9 +168,7 @@ export default function BillingPage() {
 										</td>
 										<td className="px-4 py-2 text-neutral-300">{dollars(row.costCents)}</td>
 										<td className="px-4 py-2 text-neutral-300">{dollars(row.markupCents)}</td>
-										<td className="px-4 py-2 text-neutral-300">
-											{dollars(row.totalDebitedCents)}
-										</td>
+										<td className="px-4 py-2 text-neutral-300">{dollars(row.totalDebitedCents)}</td>
 									</tr>
 								))}
 							</tbody>

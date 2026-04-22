@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
 	CREDIT_PACKS,
-	isValidPackSize,
 	PACK_SIZES,
+	isValidPackSize,
 	verifyWebhookSignature,
 } from '../../apps/billing/src/lib/polar'
 
@@ -11,12 +11,9 @@ describe('billing.polar.isValidPackSize', () => {
 		expect(isValidPackSize(n)).toBe(true)
 	})
 
-	it.each([0, 1, 7, 10, 25, 99, 101, 500, -5, null, undefined, 'five', '5'])(
-		'rejects %p',
-		(n) => {
-			expect(isValidPackSize(n)).toBe(false)
-		},
-	)
+	it.each([0, 1, 7, 10, 25, 99, 101, 500, -5, null, undefined, 'five', '5'])('rejects %p', (n) => {
+		expect(isValidPackSize(n)).toBe(false)
+	})
 })
 
 describe('billing.polar.CREDIT_PACKS', () => {
@@ -74,7 +71,7 @@ describe('billing.polar.verifyWebhookSignature', () => {
 			await verifyWebhookSignature({
 				id,
 				timestamp,
-				body: body + 'tampered',
+				body: `${body}tampered`,
 				signatureHeader: `v1,${computed}`,
 				secret,
 			}),

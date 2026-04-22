@@ -2,8 +2,8 @@ import { EdgeRouteError } from '@edgerouteai/shared'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import type { BillingContext } from './lib/env.js'
 import { sessionOrKeyAuth } from './lib/auth.js'
+import type { BillingContext } from './lib/env.js'
 import { balanceRoute } from './routes/balance.js'
 import { checkoutRoute } from './routes/checkout.js'
 import { webhookRoute } from './routes/webhook.js'
@@ -35,7 +35,9 @@ app.onError((err, c) => {
 	}
 	console.error('billing unhandled error:', err)
 	return c.json(
-		{ error: { message: 'Internal server error', code: 'internal_error', type: 'edgeroute_error' } },
+		{
+			error: { message: 'Internal server error', code: 'internal_error', type: 'edgeroute_error' },
+		},
 		500,
 	)
 })
