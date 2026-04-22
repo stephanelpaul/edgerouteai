@@ -19,10 +19,7 @@ export async function getPlatformKeyFor(
 		.select()
 		.from(platformUpstreamKeys)
 		.where(
-			and(
-				eq(platformUpstreamKeys.provider, provider),
-				eq(platformUpstreamKeys.isActive, true),
-			),
+			and(eq(platformUpstreamKeys.provider, provider), eq(platformUpstreamKeys.isActive, true)),
 		)
 	if (rows.length === 0) return null
 	const pick = rows[Math.floor(Math.random() * rows.length)]

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { attemptDebit, computeMarkupCents, MARKUP_BPS } from '../../../apps/api/src/lib/credits'
+import { MARKUP_BPS, attemptDebit, computeMarkupCents } from '../../../apps/api/src/lib/credits'
 
 describe('credits.computeMarkupCents', () => {
 	it('computes 2.5% markup as the canonical MARKUP_BPS', () => {
@@ -62,7 +62,9 @@ describe('credits.attemptDebit', () => {
 	it('short-circuits true for zero debit (no DB call)', async () => {
 		const db = mockDb({ rows_written: 0 })
 		expect(await attemptDebit(db, 'user-1', 0)).toBe(true)
-		expect((db as unknown as { run: { mock: { calls: unknown[] } } }).run.mock.calls).toHaveLength(0)
+		expect((db as unknown as { run: { mock: { calls: unknown[] } } }).run.mock.calls).toHaveLength(
+			0,
+		)
 	})
 
 	it('short-circuits true for negative debit (defensive)', async () => {

@@ -46,11 +46,7 @@ export async function attemptDebit(
  * Read the user's current balance. Returns 0 if no row exists (un-onboarded user).
  */
 export async function getBalanceCents(db: Database, userId: string): Promise<number> {
-	const [row] = await db
-		.select()
-		.from(userCredits)
-		.where(eq(userCredits.userId, userId))
-		.limit(1)
+	const [row] = await db.select().from(userCredits).where(eq(userCredits.userId, userId)).limit(1)
 	return row?.balanceCents ?? 0
 }
 
