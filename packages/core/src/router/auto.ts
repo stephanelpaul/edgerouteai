@@ -294,6 +294,9 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 			groq: 'groq/llama-3.3-70b-versatile',
 			together: 'together/llama-3.3-70b',
 			cloudflare: 'cloudflare/llama-3.1-8b',
+			cohere: 'cohere/command-r-plus-08-2024',
+			ollama: 'ollama/llama3.1',
+			azure: 'azure/gpt-4o',
 		}
 		const model = fallbacks[provider]
 		if (!model) continue

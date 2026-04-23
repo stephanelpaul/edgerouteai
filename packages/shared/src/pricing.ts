@@ -1,3 +1,5 @@
+import { MODELS, resolveModel } from './models.js'
+
 export interface ModelPricing {
 	inputPerMillion: number
 	outputPerMillion: number
@@ -48,6 +50,22 @@ export const PRICING: Record<string, ModelPricing> = {
 	'cloudflare/mistral-small': { inputPerMillion: 0.35, outputPerMillion: 0.55 },
 	'cloudflare/deepseek-r1-distill': { inputPerMillion: 0.5, outputPerMillion: 4.88 },
 	'cloudflare/gemma-3-12b': { inputPerMillion: 0.35, outputPerMillion: 0.56 },
+	// Cohere (2025 rate card)
+	'cohere/command-a': { inputPerMillion: 2.5, outputPerMillion: 10 },
+	'cohere/command-r-plus': { inputPerMillion: 2.5, outputPerMillion: 10 },
+	'cohere/command-r': { inputPerMillion: 0.15, outputPerMillion: 0.6 },
+	'cohere/command-r7b': { inputPerMillion: 0.0375, outputPerMillion: 0.15 },
+	// Ollama — self-hosted, zero inference cost. Compute bills are the user's
+	// electricity. We still list $0 so cost-aware routing doesn't drop them.
+	'ollama/llama3.3': { inputPerMillion: 0, outputPerMillion: 0 },
+	'ollama/llama3.1': { inputPerMillion: 0, outputPerMillion: 0 },
+	'ollama/qwen2.5-coder': { inputPerMillion: 0, outputPerMillion: 0 },
+	'ollama/deepseek-r1': { inputPerMillion: 0, outputPerMillion: 0 },
+	// Azure OpenAI — PAYG prices match OpenAI proper.
+	'azure/gpt-4o': { inputPerMillion: 2.5, outputPerMillion: 10 },
+	'azure/gpt-4.1': { inputPerMillion: 2, outputPerMillion: 8 },
+	'azure/gpt-5': { inputPerMillion: 1.25, outputPerMillion: 10 },
+	'azure/o4-mini': { inputPerMillion: 1.1, outputPerMillion: 4.4 },
 }
 
 export function calculateCost(
@@ -68,7 +86,9 @@ export function calculateCost(
  * rankings in the router (which use provider-native names like
  * "google/gemini-2.5-pro-preview-03-25" or "mistral/mistral-large-latest")
  * still find their price row (stored under the canonical
- * "google/gemini-2.5-pro" / "mistral/mistral-large").
+ * "google/gemini-2.5-pro" / "mistral/mistral-large"). Also tries stripping
+ * arbitrary date / tag suffixes (e.g. "-08-2024") by falling back to a
+ * reverse lookup through the MODELS catalog via resolveModel().
  */
 export function getPricing(modelString: string): ModelPricing | undefined {
 	if (PRICING[modelString]) return PRICING[modelString]
@@ -76,6 +96,15 @@ export function getPricing(modelString: string): ModelPricing | undefined {
 	if (PRICING[withoutPreview]) return PRICING[withoutPreview]
 	const withoutLatest = modelString.replace(/-latest$/, '')
 	if (PRICING[withoutLatest]) return PRICING[withoutLatest]
+	// Fallback: if the string is a provider-native id (e.g. "cohere/command-r-plus-08-2024"
+	// or just "command-r-plus-08-2024"), reverse-resolve via MODELS to find
+	// the canonical pricing key.
+	const resolved = resolveModel(modelString)
+	if (resolved) {
+		for (const [key, model] of Object.entries(MODELS)) {
+			if (model === resolved && PRICING[key]) return PRICING[key]
+		}
+	}
 	return undefined
 }
 

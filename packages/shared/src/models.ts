@@ -190,6 +190,83 @@ export const MODELS: Record<string, ModelConfig> = {
 		name: 'Gemma 3 12B (Cloudflare)',
 		contextLength: 128000,
 	},
+	// Cohere — Command A is the flagship as of 2025.
+	'cohere/command-a': {
+		id: 'command-a-03-2025',
+		provider: 'cohere',
+		name: 'Command A',
+		contextLength: 256000,
+	},
+	'cohere/command-r-plus': {
+		id: 'command-r-plus-08-2024',
+		provider: 'cohere',
+		name: 'Command R+',
+		contextLength: 128000,
+	},
+	'cohere/command-r': {
+		id: 'command-r-08-2024',
+		provider: 'cohere',
+		name: 'Command R',
+		contextLength: 128000,
+	},
+	'cohere/command-r7b': {
+		id: 'command-r7b-12-2024',
+		provider: 'cohere',
+		name: 'Command R7B',
+		contextLength: 128000,
+	},
+	// Ollama — models are whatever the user has pulled. These are common
+	// defaults for auto-complete; context length varies by pull tag.
+	'ollama/llama3.3': {
+		id: 'llama3.3',
+		provider: 'ollama',
+		name: 'Llama 3.3 (Ollama)',
+		contextLength: 128000,
+	},
+	'ollama/llama3.1': {
+		id: 'llama3.1',
+		provider: 'ollama',
+		name: 'Llama 3.1 (Ollama)',
+		contextLength: 128000,
+	},
+	'ollama/qwen2.5-coder': {
+		id: 'qwen2.5-coder',
+		provider: 'ollama',
+		name: 'Qwen 2.5 Coder (Ollama)',
+		contextLength: 32000,
+	},
+	'ollama/deepseek-r1': {
+		id: 'deepseek-r1',
+		provider: 'ollama',
+		name: 'DeepSeek R1 (Ollama)',
+		contextLength: 64000,
+	},
+	// Azure OpenAI — underlying models are the same OpenAI shapes. Deployment
+	// name lives in credentials; these entries are for pricing/logging.
+	'azure/gpt-4o': {
+		id: 'gpt-4o',
+		provider: 'azure',
+		name: 'Azure GPT-4o',
+		contextLength: 128000,
+	},
+	'azure/gpt-4.1': {
+		id: 'gpt-4.1',
+		provider: 'azure',
+		name: 'Azure GPT-4.1',
+		contextLength: 1047576,
+	},
+	'azure/gpt-5': {
+		id: 'gpt-5',
+		provider: 'azure',
+		name: 'Azure GPT-5',
+		contextLength: 1047576,
+	},
+	'azure/o4-mini': {
+		id: 'o4-mini',
+		provider: 'azure',
+		name: 'Azure o4-mini',
+		contextLength: 200000,
+	},
 } as const
 
 export function resolveModel(modelString: string): ModelConfig | undefined {

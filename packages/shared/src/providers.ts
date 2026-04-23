@@ -47,6 +47,22 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
 		// closest static fragment we can surface in metadata.
 		baseUrl: 'https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1',
 	},
+	cohere: {
+		id: 'cohere',
+		name: 'Cohere',
+		baseUrl: 'https://api.cohere.com/compatibility/v1',
+	},
+	ollama: {
+		id: 'ollama',
+		name: 'Ollama (self-hosted)',
+		// User provides their own base URL in the credential field.
+		baseUrl: '{user-provided-base-url}/v1',
+	},
+	azure: {
+		id: 'azure',
+		name: 'Azure OpenAI',
+		baseUrl: 'https://{resource}.openai.azure.com/openai/deployments/{deployment}',
+	},
 } as const
 
 export type ProviderId = keyof typeof PROVIDERS
