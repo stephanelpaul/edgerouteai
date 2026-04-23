@@ -9,6 +9,7 @@ const navItems = [
 	{ href: '/dashboard/compare', label: 'Compare' },
 	{ href: '/dashboard/keys', label: 'API Keys' },
 	{ href: '/dashboard/providers', label: 'Providers' },
+	{ href: '/dashboard/billing', label: 'Billing' },
 	{ href: '/dashboard/logs', label: 'Logs' },
 	{ href: '/dashboard/routing', label: 'Routing' },
 	{ href: '/dashboard/aliases', label: 'Aliases' },

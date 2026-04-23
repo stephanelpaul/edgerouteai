@@ -1,0 +1,23 @@
+EdgeRouteAI Billing Service — Proprietary License
+
+Copyright (c) 2026 EdgeRouteAI. All rights reserved.
+
+This source code is NOT open source. It is made available in this repository
+solely so that contributors to the open-source gateway and MCP packages can
+observe the boundaries of the system.
+
+No license is granted, express or implied, to:
+
+  - copy, modify, or create derivative works of this software;
+  - distribute, sublicense, sell, or otherwise transfer this software;
+  - self-host, deploy, or operate this software (including any fork) in any
+    environment outside the infrastructure operated by EdgeRouteAI;
+  - extract, reimplement, or reuse any billing logic, integration code,
+    webhook handling, or pricing mechanism from this software.
+
+Any such use requires a separate written commercial agreement with the
+copyright holder.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY.

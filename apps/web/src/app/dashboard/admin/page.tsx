@@ -141,9 +141,19 @@ export default function AdminPage() {
 
 	return (
 		<div className="p-8 max-w-6xl">
-			<div className="mb-8">
-				<h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-				<p className="text-neutral-400 text-sm mt-1">Platform overview and user management</p>
+			<div className="mb-8 flex items-start justify-between gap-4">
+				<div>
+					<h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+					<p className="text-neutral-400 text-sm mt-1">Platform overview and user management</p>
+				</div>
+				{isSuperadmin && (
+					<a
+						href="/dashboard/admin/platform-keys"
+						className="rounded-lg border border-amber-900 bg-amber-950/30 px-4 py-2 text-sm font-medium text-amber-400 hover:bg-amber-950/50 transition whitespace-nowrap"
+					>
+						Platform Keys →
+					</a>
+				)}
 			</div>
 
 			{/* Stats */}
