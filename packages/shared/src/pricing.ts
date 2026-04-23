@@ -35,10 +35,33 @@ export function calculateCost(
 	inputTokens: number,
 	outputTokens: number,
 ): number {
-	const pricing = PRICING[modelString]
+	const pricing = getPricing(modelString)
 	if (!pricing) return 0
 	return (
 		(inputTokens / 1_000_000) * pricing.inputPerMillion +
 		(outputTokens / 1_000_000) * pricing.outputPerMillion
 	)
+}
+
+/**
+ * Resolve pricing for a model string, with fallback canonicalization so the
+ * rankings in the router (which use provider-native names like
+ * "google/gemini-2.5-pro-preview-03-25" or "mistral/mistral-large-latest")
+ * still find their price row (stored under the canonical
+ * "google/gemini-2.5-pro" / "mistral/mistral-large").
+ */
+export function getPricing(modelString: string): ModelPricing | undefined {
+	if (PRICING[modelString]) return PRICING[modelString]
+	const withoutPreview = modelString.replace(/-preview-\d{4}-\d{2}-\d{2}$/, '')
+	if (PRICING[withoutPreview]) return PRICING[withoutPreview]
+	const withoutLatest = modelString.replace(/-latest$/, '')
+	if (PRICING[withoutLatest]) return PRICING[withoutLatest]
+	return undefined
+}
+
+/** Average USD per million tokens (input + output average). Infinity if unpriced. */
+export function avgCostPerMTok(modelString: string): number {
+	const p = getPricing(modelString)
+	if (!p) return Number.POSITIVE_INFINITY
+	return (p.inputPerMillion + p.outputPerMillion) / 2
 }

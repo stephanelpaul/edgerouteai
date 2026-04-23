@@ -89,10 +89,40 @@ export const MODELS: Record<string, ModelConfig> = {
 
 export function resolveModel(modelString: string): ModelConfig | undefined {
 	if (MODELS[modelString]) return MODELS[modelString]
-	return Object.values(MODELS).find((m) => m.id === modelString)
+	// Try stripping the "provider/" prefix and matching on native id
+	const slashIdx = modelString.indexOf('/')
+	const native = slashIdx >= 0 ? modelString.substring(slashIdx + 1) : modelString
+	return Object.values(MODELS).find((m) => m.id === native)
 }
 
 export function getProviderForModel(modelString: string): string | undefined {
 	const model = resolveModel(modelString)
 	return model?.provider
+}
+
+/** Context length for a model, or undefined if unknown. */
+export function getContextLength(modelString: string): number | undefined {
+	return resolveModel(modelString)?.contextLength
+}
+
+/**
+ * Rough token count for a set of chat messages. Uses the 4-chars-per-token
+ * heuristic — slightly over-estimates for English (better for a context-fit
+ * guard to err on the safe side) and slightly under for code-dense input.
+ * Not accurate enough for billing, but fine for "does this fit in 128k?".
+ */
+export function estimateTokens(messages: Array<{ content: string | unknown }>): number {
+	let chars = 0
+	for (const m of messages) {
+		if (typeof m.content === 'string') {
+			chars += m.content.length
+		} else if (Array.isArray(m.content)) {
+			for (const part of m.content) {
+				if (part && typeof part === 'object' && 'text' in part && typeof part.text === 'string') {
+					chars += part.text.length
+				}
+			}
+		}
+	}
+	return Math.ceil(chars / 4)
 }
