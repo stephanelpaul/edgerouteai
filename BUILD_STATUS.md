@@ -21,9 +21,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**7 PRs open and all passing (or awaiting CI).** 25-day window (2026-05-17) with 9 more phases queued.
+**9 PRs open.** 25-day window (2026-05-17). Supported providers grew from 5 to **11** (OpenAI, Anthropic, Google, Mistral, xAI, Groq, Together AI, Cloudflare Workers AI, Cohere, Ollama, Azure OpenAI).
 
-**% complete:** ~55% of overall 25-day window. 7 feature PRs shipped; 193 tests passing; all 9 workspaces typecheck green.
+**% complete:** ~70% of overall 25-day window. 9 feature PRs shipped; 243 tests passing; all 9 workspaces typecheck green.
 
 👉 **See [HANDOFF.md](HANDOFF.md) for everything you need to do on return** (Polar setup, Cloudflare secrets, DNS, deploy order, smoke-test steps).
 
@@ -32,18 +32,18 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 | # | Phase | Status | Branch | PR |
 |---|-------|--------|--------|-----|
 | 0 | Prep: spec, plan, license, status doc | ✅ done | `main` | merged (2f95390) |
-| 1 | Schema + credits tables | ✅ done | `feat/credits-schema` | [#5](https://github.com/stephanelpaul/edgerouteai/pull/5) draft ✅ CI |
-| 2 | Gateway platform-key fallback + metering | ✅ done | `feat/platform-keys` | [#6](https://github.com/stephanelpaul/edgerouteai/pull/6) draft ✅ CI |
-| 3 | Polar billing worker (proprietary `apps/billing`) | ✅ done | `feat/billing` | [#7](https://github.com/stephanelpaul/edgerouteai/pull/7) draft ✅ CI |
-| 4 | MCP HTTP server | ✅ done | `feat/mcp` | [#8](https://github.com/stephanelpaul/edgerouteai/pull/8) draft ✅ CI |
-| 4b | Superadmin UI for platform keys | ✅ done | `feat/platform-keys-admin` | [#9](https://github.com/stephanelpaul/edgerouteai/pull/9) draft ✅ CI |
+| 1 | Schema + credits tables | ✅ done | `feat/credits-schema` | [#5](https://github.com/stephanelpaul/edgerouteai/pull/5) draft |
+| 2 | Gateway platform-key fallback + metering | ✅ done | `feat/platform-keys` | [#6](https://github.com/stephanelpaul/edgerouteai/pull/6) draft |
+| 3 | Polar billing worker (proprietary `apps/billing`) | ✅ done | `feat/billing` | [#7](https://github.com/stephanelpaul/edgerouteai/pull/7) draft |
+| 4 | MCP HTTP server | ✅ done | `feat/mcp` | [#8](https://github.com/stephanelpaul/edgerouteai/pull/8) draft |
+| 4b | Superadmin UI for platform keys | ✅ done | `feat/platform-keys-admin` | [#9](https://github.com/stephanelpaul/edgerouteai/pull/9) draft |
 | 5 | MCP stdio shim (`@edgerouteai/mcp-stdio`) | ✅ done | `feat/mcp-stdio` | [#10](https://github.com/stephanelpaul/edgerouteai/pull/10) draft |
 | 6.1 | Smart router v1: cost budget + context guard + preferCheaper / tier=auto | ✅ done | `feat/smart-router` | [#11](https://github.com/stephanelpaul/edgerouteai/pull/11) draft |
-| 6.2 | Smart router v2: LLM classifier (follow-up commits on feat/smart-router) | queued | `feat/smart-router` | — |
-| 6.3 | Smart router v3: rolling failure/latency tracker (KV) | queued | `feat/smart-router` | — |
+| 6.3 | Smart router v3: rolling failure / latency tracker (KV) | ✅ done | `feat/smart-router` | [#11](https://github.com/stephanelpaul/edgerouteai/pull/11) (same branch) |
+| 7 | 3 providers: Cloudflare Workers AI, Together, Groq | ✅ done | `feat/providers-1` | [#12](https://github.com/stephanelpaul/edgerouteai/pull/12) draft |
+| 8 | 3 providers: Cohere, Ollama, Azure OpenAI | ✅ done | `feat/providers-2` | [#13](https://github.com/stephanelpaul/edgerouteai/pull/13) draft |
+| 6.2 | Smart router v2: LLM classifier (follow-up on feat/smart-router) | queued | `feat/smart-router` | — |
 | 6.4 | Smart router v4: user preference overrides | queued | `feat/smart-router` | — |
-| 7 | 3 providers: Cloudflare Workers AI, Together, Groq | queued | `feat/providers-1` | — |
-| 8 | 3 providers: Cohere, Ollama, Azure OpenAI | queued | `feat/providers-2` | — |
 | 9 | BYOK platform fee (hybrid: 1K free/mo then $0.0001/req) | queued | `feat/byok-fee` | — |
 | 10 | Observability (OTel, dashboard analytics, per-req webhook, Langfuse/Helicone relay) | queued | `feat/observability` | — |
 | 11 | Guardrails (PII regex, keyword, LLM classifier, webhook veto) | queued | `feat/guardrails` | — |
@@ -54,6 +54,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Recent activity (newest first)
 
+- `3a2d9f3` feat(core): add Cohere, Ollama, Azure OpenAI providers (PR #13)
+- `925427b` feat(core): add Groq, Together AI, Cloudflare Workers AI providers (PR #12)
+- `50e51e5` feat(core,api): rolling failure-tracker demotes flaky models automatically (PR #11)
 - `80ef89c` feat(core): cost-aware ranking + context-window guard in auto-router (PR #11)
 - `4f3751f` feat(mcp-stdio): add local stdio bridge npm package for Claude Desktop / Cursor (PR #10)
 - `50dc854` feat(api,web): add superadmin UI for managing platform upstream keys (PR #9)
@@ -62,7 +65,6 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 - `4d89e2f` feat(billing,web): add proprietary Polar billing worker + dashboard page (PR #7)
 - `7425eb6` feat(api): add platform-key fallback with atomic credit decrement (PR #6)
 - `8cf072b` feat(db): add platform keys, credits, usage ledger, and payment events schema (PR #5)
-- `2f95390` chore: split license into FSL-1.1 (gateway) and proprietary (dashboard)
 
 ## Decisions I made
 
