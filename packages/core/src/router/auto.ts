@@ -4,6 +4,7 @@ import {
 	estimateTokens,
 	getContextLength,
 } from '@edgerouteai/shared'
+import { type DemotionMap, filterDemoted } from './health.js'
 import { type ResolvedRoute, resolveRoute } from './resolver.js'
 
 export type CostTier = 'quality' | 'balanced' | 'budget' | 'auto'
@@ -37,6 +38,16 @@ export interface AutoRouteOptions {
 	 * checking context fit. Default: 4096 tokens.
 	 */
 	outputHeadroomTokens?: number
+	/**
+	 * Health map — models currently in failure-cooldown are filtered out.
+	 * Caller (the gateway) loads this from KV once per request; pass it in
+	 * via this option. Router stays pure / sync.
+	 */
+	demotions?: DemotionMap
+	/**
+	 * Clock override for tests. Defaults to Date.now().
+	 */
+	nowMs?: number
 }
 
 export interface AutoRouteResult extends ResolvedRoute {
@@ -153,6 +164,8 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		preferCheaper,
 		estimatedInputTokens,
 		outputHeadroomTokens = 4096,
+		demotions,
+		nowMs = Date.now(),
 	} = options
 
 	const taskType = detectTaskType(messages)
@@ -205,8 +218,18 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 
 	const effectivePreferCheaper = preferCheaper || tier === 'auto'
 
-	// 1) Cost-budget filter (if set).
+	// 1a) Health filter: drop models currently in failure-cooldown. Runs first
+	//     so neither cost nor context filters waste work on a dead model.
 	let candidates = ranking
+	if (demotions && Object.keys(demotions).length > 0) {
+		const before = candidates.length
+		candidates = filterDemoted(candidates, demotions, nowMs)
+		if (candidates.length < before) {
+			reason = `${reason}, skipping ${before - candidates.length} demoted model(s)`
+		}
+	}
+
+	// 1b) Cost-budget filter (if set).
 	if (costBudgetPerMTok !== undefined) {
 		const before = candidates.length
 		candidates = candidates.filter((m) => avgCostPerMTok(m) <= costBudgetPerMTok)

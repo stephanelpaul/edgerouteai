@@ -25,6 +25,7 @@ import { Hono } from 'hono'
 import { attemptDebit, computeMarkupCents, getBalanceCents } from '../lib/credits.js'
 import { decrypt } from '../lib/crypto.js'
 import type { AppContext } from '../lib/env.js'
+import { getDemotions, recordFailureKv } from '../lib/health-kv.js'
 import { getPlatformKeyFor } from '../lib/platform-keys.js'
 
 const proxy = new Hono<AppContext>()
@@ -109,11 +110,17 @@ proxy.post('/v1/chat/completions', async (c) => {
 		resolvedModel = alias.targetModel
 	}
 
+	// Load current demotion map once per request. Used both by autoRoute below
+	// and as an input to the fallback-chain filtering later on.
+	const demotions = await getDemotions(c.env.RATE_LIMIT)
+
 	// Handle auto-routing
 	if (resolvedModel === 'auto' || resolvedModel.startsWith('auto/')) {
 		const tierStr = resolvedModel === 'auto' ? undefined : resolvedModel.split('/')[1]
 		const tier =
-			tierStr === 'quality' || tierStr === 'balanced' || tierStr === 'budget' ? tierStr : undefined
+			tierStr === 'quality' || tierStr === 'balanced' || tierStr === 'budget' || tierStr === 'auto'
+				? tierStr
+				: undefined
 
 		const userProviderKeys = await db
 			.select({ provider: providerKeys.provider })
@@ -129,6 +136,7 @@ proxy.post('/v1/chat/completions', async (c) => {
 			messages: body.messages,
 			availableProviders,
 			tier,
+			demotions,
 		})
 
 		if (!autoResult) {
@@ -475,7 +483,15 @@ proxy.post('/v1/chat/completions', async (c) => {
 			return new Response(result.stream, { headers: responseHeaders })
 		} catch (err) {
 			lastError = err as Error
-			if (err instanceof ProviderError && [429, 500, 503].includes(err.status)) continue
+			if (err instanceof ProviderError && [429, 500, 502, 503].includes(err.status)) {
+				// Record this failure in the health map (best-effort, fire-and-forget).
+				// After 3 failures in 5min the model enters cooldown and subsequent
+				// routing calls will skip it automatically.
+				c.executionCtx.waitUntil(
+					recordFailureKv(c.env.RATE_LIMIT, route.provider, route.modelId, err.status),
+				)
+				continue
+			}
 			throw err
 		}
 	}

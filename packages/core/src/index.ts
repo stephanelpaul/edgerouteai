@@ -13,5 +13,18 @@ export {
 	type AutoRouteResult,
 } from './router/auto.js'
 export { buildFallbackChain } from './router/fallback.js'
+export {
+	type DemotionEntry,
+	type DemotionMap,
+	filterDemoted,
+	modelKey,
+	purgeExpired,
+	recordFailure,
+	recordSuccess,
+	FAILURE_WINDOW_MS,
+	FAILURE_THRESHOLD,
+	BASE_COOLDOWN_MS,
+	MAX_COOLDOWN_MS,
+} from './router/health.js'
 export { proxyRequest, type ProxyRequestOptions, type ProxyResult } from './streaming/proxy.js'
 export { teeStream } from './streaming/tee.js'
