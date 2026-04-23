@@ -78,7 +78,12 @@ const BALANCED_RANKING = [
 ]
 
 const BUDGET_RANKING = [
+	'cloudflare/llama-3.2-3b', // ~$0.05/Mtok, zero egress on CF
+	'groq/llama-3.1-8b-instant', // ~$0.07/Mtok avg, fastest inference
 	'google/gemini-2.5-flash-lite',
+	'groq/mixtral-8x7b-32768',
+	'cloudflare/llama-3.1-8b',
+	'together/llama-3.1-8b',
 	'google/gemini-2.5-flash-preview-04-17',
 	'mistral/mistral-small-latest',
 	'openai/gpt-5.4-mini',
@@ -95,6 +100,8 @@ const CODE_RANKING = [
 	'anthropic/claude-opus-4-6',
 	'google/gemini-2.5-pro-preview-03-25',
 	'openai/gpt-4o',
+	'together/qwen-2.5-coder-32b', // cheap coder option
+	'groq/qwen-2.5-coder-32b',
 	'xai/grok-4.20',
 ]
 
@@ -284,6 +291,9 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 			google: 'google/gemini-2.5-flash-preview-04-17',
 			mistral: 'mistral/mistral-large-latest',
 			xai: 'xai/grok-4.20',
+			groq: 'groq/llama-3.3-70b-versatile',
+			together: 'together/llama-3.3-70b',
+			cloudflare: 'cloudflare/llama-3.1-8b',
 		}
 		const model = fallbacks[provider]
 		if (!model) continue
