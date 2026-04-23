@@ -28,6 +28,26 @@ export const PRICING: Record<string, ModelPricing> = {
 	'mistral/mistral-small': { inputPerMillion: 0.2, outputPerMillion: 0.6 },
 	// xAI
 	'xai/grok-4.20': { inputPerMillion: 2, outputPerMillion: 6 },
+	// Groq (paid-tier prices; free tier available separately via Groq)
+	'groq/llama-3.3-70b-versatile': { inputPerMillion: 0.59, outputPerMillion: 0.79 },
+	'groq/llama-3.1-8b-instant': { inputPerMillion: 0.05, outputPerMillion: 0.08 },
+	'groq/deepseek-r1-distill-llama-70b': { inputPerMillion: 0.75, outputPerMillion: 0.99 },
+	'groq/qwen-2.5-coder-32b': { inputPerMillion: 0.79, outputPerMillion: 0.79 },
+	'groq/mixtral-8x7b-32768': { inputPerMillion: 0.24, outputPerMillion: 0.24 },
+	// Together AI
+	'together/llama-3.3-70b': { inputPerMillion: 0.88, outputPerMillion: 0.88 },
+	'together/llama-3.1-8b': { inputPerMillion: 0.18, outputPerMillion: 0.18 },
+	'together/qwen-2.5-72b': { inputPerMillion: 1.2, outputPerMillion: 1.2 },
+	'together/qwen-2.5-coder-32b': { inputPerMillion: 0.8, outputPerMillion: 0.8 },
+	'together/deepseek-v3': { inputPerMillion: 1.25, outputPerMillion: 1.25 },
+	'together/deepseek-r1': { inputPerMillion: 3, outputPerMillion: 7 },
+	// Cloudflare Workers AI (neurons billed; rough USD-equivalent per Mtok)
+	'cloudflare/llama-3.3-70b': { inputPerMillion: 0.29, outputPerMillion: 2.25 },
+	'cloudflare/llama-3.1-8b': { inputPerMillion: 0.15, outputPerMillion: 0.15 },
+	'cloudflare/llama-3.2-3b': { inputPerMillion: 0.051, outputPerMillion: 0.051 },
+	'cloudflare/mistral-small': { inputPerMillion: 0.35, outputPerMillion: 0.55 },
+	'cloudflare/deepseek-r1-distill': { inputPerMillion: 0.5, outputPerMillion: 4.88 },
+	'cloudflare/gemma-3-12b': { inputPerMillion: 0.35, outputPerMillion: 0.56 },
 }
 
 export function calculateCost(
@@ -35,10 +55,33 @@ export function calculateCost(
 	inputTokens: number,
 	outputTokens: number,
 ): number {
-	const pricing = PRICING[modelString]
+	const pricing = getPricing(modelString)
 	if (!pricing) return 0
 	return (
 		(inputTokens / 1_000_000) * pricing.inputPerMillion +
 		(outputTokens / 1_000_000) * pricing.outputPerMillion
 	)
+}
+
+/**
+ * Resolve pricing for a model string, with fallback canonicalization so the
+ * rankings in the router (which use provider-native names like
+ * "google/gemini-2.5-pro-preview-03-25" or "mistral/mistral-large-latest")
+ * still find their price row (stored under the canonical
+ * "google/gemini-2.5-pro" / "mistral/mistral-large").
+ */
+export function getPricing(modelString: string): ModelPricing | undefined {
+	if (PRICING[modelString]) return PRICING[modelString]
+	const withoutPreview = modelString.replace(/-preview-\d{4}-\d{2}-\d{2}$/, '')
+	if (PRICING[withoutPreview]) return PRICING[withoutPreview]
+	const withoutLatest = modelString.replace(/-latest$/, '')
+	if (PRICING[withoutLatest]) return PRICING[withoutLatest]
+	return undefined
+}
+
+/** Average USD per million tokens (input + output average). Infinity if unpriced. */
+export function avgCostPerMTok(modelString: string): number {
+	const p = getPricing(modelString)
+	if (!p) return Number.POSITIVE_INFINITY
+	return (p.inputPerMillion + p.outputPerMillion) / 2
 }

@@ -30,6 +30,23 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
 		name: 'xAI',
 		baseUrl: 'https://api.x.ai/v1',
 	},
+	groq: {
+		id: 'groq',
+		name: 'Groq',
+		baseUrl: 'https://api.groq.com/openai/v1',
+	},
+	together: {
+		id: 'together',
+		name: 'Together AI',
+		baseUrl: 'https://api.together.xyz/v1',
+	},
+	cloudflare: {
+		id: 'cloudflare',
+		name: 'Cloudflare Workers AI',
+		// Base URL is templated with account_id at request time; this is the
+		// closest static fragment we can surface in metadata.
+		baseUrl: 'https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1',
+	},
 } as const
 
 export type ProviderId = keyof typeof PROVIDERS
