@@ -21,9 +21,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**Scope expanded to 25-day window (2026-05-17).** 5 PRs open and all CI green; 11 more phases queued.
+**7 PRs open and all passing (or awaiting CI).** 25-day window (2026-05-17) with 9 more phases queued.
 
-**% complete:** ~40% of overall 25-day window. 5 feature PRs + CI fixes shipped; 174 tests passing; all 8 workspaces typecheck green; all PR CI checks green.
+**% complete:** ~55% of overall 25-day window. 7 feature PRs shipped; 193 tests passing; all 9 workspaces typecheck green.
 
 👉 **See [HANDOFF.md](HANDOFF.md) for everything you need to do on return** (Polar setup, Cloudflare secrets, DNS, deploy order, smoke-test steps).
 
@@ -37,8 +37,11 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 | 3 | Polar billing worker (proprietary `apps/billing`) | ✅ done | `feat/billing` | [#7](https://github.com/stephanelpaul/edgerouteai/pull/7) draft ✅ CI |
 | 4 | MCP HTTP server | ✅ done | `feat/mcp` | [#8](https://github.com/stephanelpaul/edgerouteai/pull/8) draft ✅ CI |
 | 4b | Superadmin UI for platform keys | ✅ done | `feat/platform-keys-admin` | [#9](https://github.com/stephanelpaul/edgerouteai/pull/9) draft ✅ CI |
-| 5 | MCP stdio shim | **in progress** | `feat/mcp-stdio` | — |
-| 6 | Smart router (LLM classifier + context guard + failure tracking + cost-aware) | queued | `feat/smart-router` | — |
+| 5 | MCP stdio shim (`@edgerouteai/mcp-stdio`) | ✅ done | `feat/mcp-stdio` | [#10](https://github.com/stephanelpaul/edgerouteai/pull/10) draft |
+| 6.1 | Smart router v1: cost budget + context guard + preferCheaper / tier=auto | ✅ done | `feat/smart-router` | [#11](https://github.com/stephanelpaul/edgerouteai/pull/11) draft |
+| 6.2 | Smart router v2: LLM classifier (follow-up commits on feat/smart-router) | queued | `feat/smart-router` | — |
+| 6.3 | Smart router v3: rolling failure/latency tracker (KV) | queued | `feat/smart-router` | — |
+| 6.4 | Smart router v4: user preference overrides | queued | `feat/smart-router` | — |
 | 7 | 3 providers: Cloudflare Workers AI, Together, Groq | queued | `feat/providers-1` | — |
 | 8 | 3 providers: Cohere, Ollama, Azure OpenAI | queued | `feat/providers-2` | — |
 | 9 | BYOK platform fee (hybrid: 1K free/mo then $0.0001/req) | queued | `feat/byok-fee` | — |
@@ -51,12 +54,10 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Recent activity (newest first)
 
+- `80ef89c` feat(core): cost-aware ranking + context-window guard in auto-router (PR #11)
+- `4f3751f` feat(mcp-stdio): add local stdio bridge npm package for Claude Desktop / Cursor (PR #10)
 - `50dc854` feat(api,web): add superadmin UI for managing platform upstream keys (PR #9)
 - `2ff7bb7` fix(ci): portable vitest path resolution + structured error parsing + ignore tsbuildinfo
-- `8671fbc` style: apply biome formatting to mcp worker changes
-- `f7f3673` style: apply biome formatting to billing worker changes
-- `28fdc61` style: apply biome formatting to platform-keys changes
-- `7cf93a8` style: apply biome formatting to generated drizzle meta files
 - `d1e2254` feat(mcp): add MCP HTTP server worker at mcp.edgerouteai.com (PR #8)
 - `4d89e2f` feat(billing,web): add proprietary Polar billing worker + dashboard page (PR #7)
 - `7425eb6` feat(api): add platform-key fallback with atomic credit decrement (PR #6)
