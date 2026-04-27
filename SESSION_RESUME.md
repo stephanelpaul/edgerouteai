@@ -15,7 +15,7 @@ EdgeRouteAI: an LLM gateway with smart routing, MCP server, and platform-managed
 
 **Started:** 2026-04-22. **Target deadline:** 2026-05-17 (25-day window). **Currently:** Day 5.
 
-**14 draft PRs open, all CI green. 307 tests passing. 9 workspaces typecheck green.**
+**15 draft PRs open, all CI green. 307 tests passing. 9 workspaces typecheck green.**
 
 ```bash
 gh pr list --draft  # see all open PRs
@@ -42,6 +42,7 @@ cat HANDOFF.md      # what user needs to do on return (Polar, Cloudflare secrets
 | 11.1 | Guardrails MVP | [#16](https://github.com/stephanelpaul/edgerouteai/pull/16) | PII regex + keyword blocklist; input scope only |
 | 6.2 | Smart router v2: LLM classifier (opt-in) | [#17](https://github.com/stephanelpaul/edgerouteai/pull/17) | `SMART_ROUTER_LLM=1` to enable; KV-cached 1h; keyword fallback on any error |
 | 6.4 | Smart router v4: user preference overrides | [#18](https://github.com/stephanelpaul/edgerouteai/pull/18) | `user_router_preferences` table; pin/exclude providers + max-¢/req cap; per-key overrides user-default |
+| 12 | Landing page polish | [#19](https://github.com/stephanelpaul/edgerouteai/pull/19) | Hero + tabbed drop-in code (curl/JS/Py/MCP) + 3 pricing cards + comparison table |
 
 **11 providers supported:** OpenAI, Anthropic, Google, Mistral, xAI, Groq, Together AI, Cloudflare Workers AI, Cohere, Ollama, Azure OpenAI.
 
@@ -51,8 +52,8 @@ Pick from this list when continuing work. Each is a single PR-sized chunk.
 
 ### High priority (user-facing differentiators)
 
-1. **Landing page polish** — value prop above fold, drop-in code example, pricing table, comparison vs OpenRouter. Edit `apps/web/src/app/page.tsx`. Branch `feat/landing`.
-2. **Router-prefs dashboard UI** — add a settings page that calls the new `/api/router-prefs` endpoints (PR #18). Per-API-key dropdown, provider pin/exclude chips, max-¢/req number input. Branch `feat/router-prefs-ui`.
+1. **Router-prefs dashboard UI** — add a settings page that calls the new `/api/router-prefs` endpoints (PR #18). Per-API-key dropdown, provider pin/exclude chips, max-¢/req number input. Branch `feat/router-prefs-ui`.
+2. **Easy-setup polish** — copy-paste config generator for Claude Desktop / Cursor JSON, first-login 3-step checklist on the dashboard. Branch `feat/onboarding`.
 
 ### Medium priority (content-heavy, can run in parallel)
 
@@ -95,6 +96,7 @@ main
  │                                                      └── feat/guardrails   #16
  │                                                           └── feat/smart-router-v2   #17
  │                                                                └── feat/router-prefs   #18
+ │                                                                     └── feat/landing   #19
 ```
 
 ## Pre-existing WIP I touched
@@ -115,9 +117,9 @@ None blocking right now. The BYOK fee 10x adjustment ($0.001/req vs $0.0001/req)
 1. **Read this file first.** Then `BUILD_STATUS.md` for live progress, `HANDOFF.md` for deploy steps.
 2. **Pull latest:** `git fetch --all && git checkout main && git pull --ff-only`.
 3. **Pick a queued phase from the list above.** High priority first unless user specifies otherwise.
-4. **Branch off the top of the stack** (currently `feat/router-prefs`):
+4. **Branch off the top of the stack** (currently `feat/landing`):
    ```bash
-   git checkout feat/router-prefs
+   git checkout feat/landing
    git checkout -b feat/<next-phase>
    ```
 5. **Develop with the same conventions:**
