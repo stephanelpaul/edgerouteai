@@ -18,6 +18,15 @@ export {
 	type AutoRouteOptions,
 	type AutoRouteResult,
 } from './router/auto.js'
+export {
+	classifyTaskType,
+	detectTaskTypeKeyword,
+	buildClassifierPrompt,
+	parseClassification,
+	lastUserText,
+	type TaskType,
+	type ClassifyOptions,
+} from './router/classifier.js'
 export { buildFallbackChain } from './router/fallback.js'
 export {
 	type DemotionEntry,

@@ -4,6 +4,7 @@ import {
 	estimateTokens,
 	getContextLength,
 } from '@edgerouteai/shared'
+import { type TaskType, detectTaskTypeKeyword } from './classifier.js'
 import { type DemotionMap, filterDemoted } from './health.js'
 import { type ResolvedRoute, resolveRoute } from './resolver.js'
 
@@ -13,6 +14,12 @@ export interface AutoRouteOptions {
 	messages: ChatMessage[]
 	availableProviders: string[]
 	tier?: CostTier
+	/**
+	 * Pre-computed task verdict (e.g. from an LLM classifier in the gateway).
+	 * When provided, the keyword scan is skipped. Lets the gateway swap in a
+	 * smarter detector while keeping this module pure / sync.
+	 */
+	taskTypeOverride?: TaskType
 	/**
 	 * Cap on average $/M tokens ((input + output) / 2). Models above this are
 	 * filtered out before provider-availability is checked. Useful for
@@ -105,52 +112,6 @@ const CODE_RANKING = [
 	'xai/grok-4.20',
 ]
 
-function detectTaskType(messages: ChatMessage[]): 'code' | 'creative' | 'general' {
-	const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
-	if (!lastUserMsg) return 'general'
-
-	const content = typeof lastUserMsg.content === 'string' ? lastUserMsg.content.toLowerCase() : ''
-
-	const codeKeywords = [
-		'code',
-		'function',
-		'debug',
-		'error',
-		'implement',
-		'programming',
-		'typescript',
-		'python',
-		'javascript',
-		'api',
-		'bug',
-		'fix',
-		'refactor',
-		'class',
-		'interface',
-		'component',
-		'react',
-		'sql',
-		'query',
-		'algorithm',
-	]
-	const creativeKeywords = [
-		'write',
-		'story',
-		'poem',
-		'creative',
-		'essay',
-		'blog',
-		'article',
-		'draft',
-		'compose',
-		'narrative',
-	]
-
-	if (codeKeywords.some((kw) => content.includes(kw))) return 'code'
-	if (creativeKeywords.some((kw) => content.includes(kw))) return 'creative'
-	return 'general'
-}
-
 function detectComplexity(messages: ChatMessage[]): 'simple' | 'complex' {
 	const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
 	if (!lastUserMsg) return 'complex'
@@ -167,6 +128,7 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		messages,
 		availableProviders,
 		tier,
+		taskTypeOverride,
 		costBudgetPerMTok,
 		preferCheaper,
 		estimatedInputTokens,
@@ -175,8 +137,9 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		nowMs = Date.now(),
 	} = options
 
-	const taskType = detectTaskType(messages)
+	const taskType = taskTypeOverride ?? detectTaskTypeKeyword(messages)
 	const complexity = detectComplexity(messages)
+	const taskVerb = taskTypeOverride ? 'Classified' : 'Detected'
 
 	// Pick the ranking based on task type and tier
 	// Explicit tier always overrides task detection, EXCEPT "auto" which still
@@ -198,10 +161,10 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		// but prefers the cheapest model that clears the quality bar.
 		if (taskType === 'code') {
 			ranking = CODE_RANKING
-			reason = 'Auto: detected coding task, cost-preferring'
+			reason = `Auto: ${taskVerb.toLowerCase()} coding task, cost-preferring`
 		} else if (taskType === 'creative') {
 			ranking = QUALITY_RANKING
-			reason = 'Auto: detected creative task, cost-preferring'
+			reason = `Auto: ${taskVerb.toLowerCase()} creative task, cost-preferring`
 		} else if (complexity === 'simple') {
 			ranking = BUDGET_RANKING
 			reason = 'Auto: simple query, cost-preferring'
@@ -211,10 +174,10 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		}
 	} else if (taskType === 'code') {
 		ranking = CODE_RANKING
-		reason = 'Detected coding task'
+		reason = `${taskVerb} coding task`
 	} else if (taskType === 'creative') {
 		ranking = QUALITY_RANKING
-		reason = 'Detected creative task, using quality models'
+		reason = `${taskVerb} creative task, using quality models`
 	} else if (complexity === 'simple') {
 		ranking = BUDGET_RANKING
 		reason = 'Simple query detected, using budget models'

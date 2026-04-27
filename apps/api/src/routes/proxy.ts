@@ -30,6 +30,7 @@ import type { AppContext } from '../lib/env.js'
 import { parseGuardrailConfig, scanMessages } from '../lib/guardrails.js'
 import { getDemotions, recordFailureKv } from '../lib/health-kv.js'
 import { getPlatformKeyFor } from '../lib/platform-keys.js'
+import { classifyTaskTypeForRequest } from '../lib/router-classifier.js'
 
 const proxy = new Hono<AppContext>()
 
@@ -140,10 +141,21 @@ proxy.post('/v1/chat/completions', async (c) => {
 			throw new ProviderKeyMissingError('any')
 		}
 
+		// Smart-router v2: opt-in LLM classifier. Returns null when the flag
+		// is off or no compatible BYOK provider is available — autoRoute then
+		// falls back to keyword detection internally.
+		const taskTypeOverride = await classifyTaskTypeForRequest({
+			env: c.env,
+			db,
+			userId,
+			messages: body.messages,
+		}).catch(() => null)
+
 		const autoResult = autoRoute({
 			messages: body.messages,
 			availableProviders,
 			tier,
+			taskTypeOverride: taskTypeOverride ?? undefined,
 			demotions,
 		})
 
