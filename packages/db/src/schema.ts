@@ -130,6 +130,29 @@ export const requestTransforms = sqliteTable('request_transforms', {
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })
 
+// Guardrails: per-api-key safety rules. config JSON shape:
+//   {
+//     blockPii?: { categories: ("email" | "phone" | "ssn" | "creditcard")[] },
+//     blockedKeywords?: string[],
+//     applyTo: "input" | "output" | "both",
+//   }
+// Action is implicit: "block" (return 400 with code "guardrail_blocked").
+// Multiple rules per key are OR-combined: any match blocks the request.
+export const guardrails = sqliteTable(
+	'guardrails',
+	{
+		id: text('id').primaryKey(),
+		apiKeyId: text('api_key_id')
+			.notNull()
+			.references(() => apiKeys.id),
+		name: text('name').notNull(),
+		config: text('config').notNull(),
+		isActive: integer('is_active', { mode: 'boolean' }).default(true),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+	},
+	(table) => [index('guardrails_api_key_idx').on(table.apiKeyId)],
+)
+
 // Platform-held upstream keys. One row per (provider, label); not user-owned.
 // Used when a user opts into platform-managed keys and pays via credits.
 export const platformUpstreamKeys = sqliteTable(

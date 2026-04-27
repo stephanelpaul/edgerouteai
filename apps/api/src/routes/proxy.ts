@@ -2,6 +2,7 @@ import { autoRoute, buildFallbackChain, proxyRequest, resolveRoute } from '@edge
 import {
 	budgets,
 	createDb,
+	guardrails,
 	modelAliases,
 	providerKeys,
 	requestLogs,
@@ -26,6 +27,7 @@ import { feeCentsForNextByokRequest, getMonthlyByokCount, isPastFreeTier } from 
 import { attemptDebit, computeMarkupCents, getBalanceCents } from '../lib/credits.js'
 import { decrypt } from '../lib/crypto.js'
 import type { AppContext } from '../lib/env.js'
+import { parseGuardrailConfig, scanMessages } from '../lib/guardrails.js'
 import { getDemotions, recordFailureKv } from '../lib/health-kv.js'
 import { getPlatformKeyFor } from '../lib/platform-keys.js'
 
@@ -228,6 +230,29 @@ proxy.post('/v1/chat/completions', async (c) => {
 						b[key] = val
 					}
 				}
+			}
+		}
+	}
+
+	// Guardrails: scan input messages against this api key's safety rules.
+	// Skip for session auth (dashboard playground) since the user is already
+	// trusted at that layer.
+	if (apiKeyId !== 'session') {
+		const rails = await db
+			.select()
+			.from(guardrails)
+			.where(and(eq(guardrails.apiKeyId, apiKeyId), eq(guardrails.isActive, true)))
+		if (rails.length > 0) {
+			const configs = rails
+				.map((r) => parseGuardrailConfig(r.config))
+				.filter((c): c is NonNullable<ReturnType<typeof parseGuardrailConfig>> => c !== null)
+			const match = scanMessages(body.messages, configs, 'input')
+			if (match) {
+				throw new EdgeRouteError(
+					`Request blocked by guardrail (${match.type}${match.category ? `: ${match.category}` : ''}). Excerpt: "${match.excerpt}"`,
+					'guardrail_blocked',
+					400,
+				)
 			}
 		}
 	}

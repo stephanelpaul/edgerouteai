@@ -14,6 +14,7 @@ import { authMeRoute } from './routes/auth-me.js'
 import { authRoute } from './routes/auth.js'
 import { budgetsRoute } from './routes/budgets.js'
 import { exportRoute } from './routes/export.js'
+import { guardrailsRoute } from './routes/guardrails.js'
 import { logsRoute } from './routes/logs.js'
 import { modelAliasesRoute } from './routes/model-aliases.js'
 import { providerKeysRoute } from './routes/provider-keys.js'
@@ -57,6 +58,7 @@ app.route('/api/aliases', modelAliasesRoute)
 app.route('/api/budgets', budgetsRoute)
 app.route('/api/webhooks', webhooksRoute)
 app.route('/api/transforms', requestTransformsRoute)
+app.route('/api/guardrails', guardrailsRoute)
 app.route('/api/export', exportRoute)
 app.route('/api/admin', adminRoute)
 app.route('/api/admin/platform-keys', adminPlatformKeysRoute)
