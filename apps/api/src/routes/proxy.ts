@@ -2,17 +2,20 @@ import { autoRoute, buildFallbackChain, proxyRequest, resolveRoute } from '@edge
 import {
 	budgets,
 	createDb,
+	guardrails,
 	modelAliases,
 	providerKeys,
 	requestLogs,
 	requestTransforms,
 	routingConfigs,
+	usageLedger,
 	webhooks,
 } from '@edgerouteai/db'
 import {
 	type ChatCompletionChunk,
 	type ChatCompletionRequest,
 	EdgeRouteError,
+	InsufficientCreditsError,
 	ModelNotFoundError,
 	ProviderError,
 	ProviderKeyMissingError,
@@ -20,8 +23,13 @@ import {
 } from '@edgerouteai/shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
+import { feeCentsForNextByokRequest, getMonthlyByokCount, isPastFreeTier } from '../lib/byok-fee.js'
+import { attemptDebit, computeMarkupCents, getBalanceCents } from '../lib/credits.js'
 import { decrypt } from '../lib/crypto.js'
 import type { AppContext } from '../lib/env.js'
+import { parseGuardrailConfig, scanMessages } from '../lib/guardrails.js'
+import { getDemotions, recordFailureKv } from '../lib/health-kv.js'
+import { getPlatformKeyFor } from '../lib/platform-keys.js'
 
 const proxy = new Hono<AppContext>()
 
@@ -92,6 +100,11 @@ proxy.post('/v1/chat/completions', async (c) => {
 	const body = await c.req.json<ChatCompletionRequest>()
 	const db = createDb(c.env.DB)
 
+	// Trace ID for this request — surfaced in the X-EdgeRoute-Trace-Id
+	// response header AND used as the request_logs.id so users can correlate
+	// dashboard logs with their own observability stack.
+	const traceId = crypto.randomUUID()
+
 	let resolvedModel = body.model
 	let autoReason: string | undefined
 
@@ -105,11 +118,17 @@ proxy.post('/v1/chat/completions', async (c) => {
 		resolvedModel = alias.targetModel
 	}
 
+	// Load current demotion map once per request. Used both by autoRoute below
+	// and as an input to the fallback-chain filtering later on.
+	const demotions = await getDemotions(c.env.RATE_LIMIT)
+
 	// Handle auto-routing
 	if (resolvedModel === 'auto' || resolvedModel.startsWith('auto/')) {
 		const tierStr = resolvedModel === 'auto' ? undefined : resolvedModel.split('/')[1]
 		const tier =
-			tierStr === 'quality' || tierStr === 'balanced' || tierStr === 'budget' ? tierStr : undefined
+			tierStr === 'quality' || tierStr === 'balanced' || tierStr === 'budget' || tierStr === 'auto'
+				? tierStr
+				: undefined
 
 		const userProviderKeys = await db
 			.select({ provider: providerKeys.provider })
@@ -125,6 +144,7 @@ proxy.post('/v1/chat/completions', async (c) => {
 			messages: body.messages,
 			availableProviders,
 			tier,
+			demotions,
 		})
 
 		if (!autoResult) {
@@ -175,6 +195,7 @@ proxy.post('/v1/chat/completions', async (c) => {
 					'Cache-Control': 'no-cache',
 					Connection: 'keep-alive',
 					'X-EdgeRoute-Cache': 'HIT',
+					'X-EdgeRoute-Trace-Id': traceId,
 				},
 			})
 		}
@@ -213,6 +234,29 @@ proxy.post('/v1/chat/completions', async (c) => {
 		}
 	}
 
+	// Guardrails: scan input messages against this api key's safety rules.
+	// Skip for session auth (dashboard playground) since the user is already
+	// trusted at that layer.
+	if (apiKeyId !== 'session') {
+		const rails = await db
+			.select()
+			.from(guardrails)
+			.where(and(eq(guardrails.apiKeyId, apiKeyId), eq(guardrails.isActive, true)))
+		if (rails.length > 0) {
+			const configs = rails
+				.map((r) => parseGuardrailConfig(r.config))
+				.filter((c): c is NonNullable<ReturnType<typeof parseGuardrailConfig>> => c !== null)
+			const match = scanMessages(body.messages, configs, 'input')
+			if (match) {
+				throw new EdgeRouteError(
+					`Request blocked by guardrail (${match.type}${match.category ? `: ${match.category}` : ''}). Excerpt: "${match.excerpt}"`,
+					'guardrail_blocked',
+					400,
+				)
+			}
+		}
+	}
+
 	const primaryRoute = resolveRoute(resolvedModel)
 	if (!primaryRoute) throw new ModelNotFoundError(resolvedModel)
 
@@ -224,6 +268,21 @@ proxy.post('/v1/chat/completions', async (c) => {
 	const fallbackModels: string[] = config ? JSON.parse(config.fallbackChain) : []
 	const chain = buildFallbackChain(resolvedModel, fallbackModels)
 
+	// Read credit balance once up-front. The platform-key fallback path uses
+	// this as an advisory pre-check; the authoritative guard is the atomic
+	// UPDATE inside attemptDebit() after the request completes.
+	const balanceCents = await getBalanceCents(db, userId)
+
+	// BYOK platform-fee pre-flight: free first 1000 BYOK requests/month, then
+	// 1¢ per 10 over (≈ $1 per 1000). If user is past free tier with no
+	// balance, refuse with 402 — they can either top up or stop sending.
+	// Counted once here; the post-flight debit in waitUntil uses the same
+	// number plus 1 (for the request we're about to log).
+	const monthlyByokCount = await getMonthlyByokCount(db, userId)
+	if (isPastFreeTier(monthlyByokCount) && balanceCents <= 0) {
+		throw new InsufficientCreditsError()
+	}
+
 	let lastError: Error | null = null
 
 	for (const route of chain) {
@@ -232,19 +291,35 @@ proxy.post('/v1/chat/completions', async (c) => {
 			.from(providerKeys)
 			.where(eq(providerKeys.userId, userId))
 		const providerKeysList = allProviderKeys.filter((r) => r.provider === route.provider)
-		if (providerKeysList.length === 0) {
-			lastError = new ProviderKeyMissingError(route.provider)
-			continue
-		}
-		// Load balance: random selection distributes load across multiple keys
-		const keyIndex = Math.floor(Math.random() * providerKeysList.length)
-		const pk = providerKeysList[keyIndex]
 
-		const apiKey = await decrypt(
-			pk.encryptedKey as unknown as ArrayBuffer,
-			pk.iv as unknown as Uint8Array,
-			c.env.ENCRYPTION_KEY,
-		)
+		let apiKey: string
+		let usedPlatformKey = false
+
+		if (providerKeysList.length === 0) {
+			// No BYOK for this provider — try a platform-managed key if the user
+			// has a positive balance. Platform-key usage is metered + charged
+			// with the 2.5% markup; BYOK stays zero-markup.
+			const platformKey = await getPlatformKeyFor(db, route.provider, c.env.ENCRYPTION_KEY)
+			if (!platformKey) {
+				lastError = new ProviderKeyMissingError(route.provider)
+				continue
+			}
+			if (balanceCents <= 0) {
+				lastError = new InsufficientCreditsError()
+				continue
+			}
+			apiKey = platformKey
+			usedPlatformKey = true
+		} else {
+			// Load balance: random selection distributes load across multiple keys
+			const keyIndex = Math.floor(Math.random() * providerKeysList.length)
+			const pk = providerKeysList[keyIndex]
+			apiKey = await decrypt(
+				pk.encryptedKey as unknown as ArrayBuffer,
+				pk.iv as unknown as Uint8Array,
+				c.env.ENCRYPTION_KEY,
+			)
+		}
 
 		try {
 			const startTime = Date.now()
@@ -285,8 +360,9 @@ proxy.post('/v1/chat/completions', async (c) => {
 						const modelString = `${route.provider}/${route.modelId}`
 						const costUsd = calculateCost(modelString, usage.prompt_tokens, usage.completion_tokens)
 
+						const logId = traceId
 						await db.insert(requestLogs).values({
-							id: crypto.randomUUID(),
+							id: logId,
 							userId,
 							apiKeyId,
 							provider: route.provider,
@@ -298,6 +374,96 @@ proxy.post('/v1/chat/completions', async (c) => {
 							statusCode: 200,
 							createdAt: new Date(),
 						})
+
+						// Platform-key path: compute markup, debit the user's credit balance
+						// atomically, and record the ledger entry. BYOK path is unchanged
+						// (zero-markup, no ledger).
+						if (usedPlatformKey) {
+							const costCents = Math.ceil((costUsd ?? 0) * 100)
+							const markupCents = computeMarkupCents(costCents)
+							const totalDebited = costCents + markupCents
+							const debited = await attemptDebit(db, userId, totalDebited)
+							await db.insert(usageLedger).values({
+								id: crypto.randomUUID(),
+								userId,
+								requestLogId: logId,
+								costCents,
+								markupCents,
+								totalDebitedCents: debited ? totalDebited : 0,
+								createdAt: new Date(),
+							})
+							if (!debited) {
+								// Balance went negative mid-request (race with a concurrent
+								// request). Fire credits.exhausted so the user/agent knows.
+								const userWebhooks = await db
+									.select()
+									.from(webhooks)
+									.where(and(eq(webhooks.userId, userId), eq(webhooks.isActive, true)))
+								const payload = JSON.stringify({
+									event: 'credits.exhausted',
+									data: {
+										userId,
+										triedDebitCents: totalDebited,
+										timestamp: new Date().toISOString(),
+									},
+								})
+								for (const wh of userWebhooks) {
+									const events = JSON.parse(wh.events)
+									if (events.includes('credits.exhausted')) {
+										const signature = wh.secret ? await hmacSign(payload, wh.secret) : undefined
+										fetch(wh.url, {
+											method: 'POST',
+											headers: {
+												'Content-Type': 'application/json',
+												...(signature ? { 'X-EdgeRoute-Signature': signature } : {}),
+											},
+											body: payload,
+										}).catch(() => {})
+									}
+								}
+							}
+						} else {
+							// BYOK path: 1¢ batched fee every 10 requests past the free
+							// tier. monthlyByokCount was sampled at request start; the
+							// freshly-inserted requestLogs row brings it to (count + 1).
+							const feeCents = feeCentsForNextByokRequest(monthlyByokCount)
+							if (feeCents > 0) {
+								// attemptDebit returns false if balance would go negative.
+								// We don't surface that to the client (the request already
+								// succeeded), but we do log it via webhook so the user/agent
+								// knows their next request will 402.
+								const debited = await attemptDebit(db, userId, feeCents)
+								if (!debited) {
+									const userWebhooks = await db
+										.select()
+										.from(webhooks)
+										.where(and(eq(webhooks.userId, userId), eq(webhooks.isActive, true)))
+									const payload = JSON.stringify({
+										event: 'credits.exhausted',
+										data: {
+											userId,
+											triedDebitCents: feeCents,
+											byokOverageBoundary: true,
+											timestamp: new Date().toISOString(),
+										},
+									})
+									for (const wh of userWebhooks) {
+										const events = JSON.parse(wh.events)
+										if (events.includes('credits.exhausted')) {
+											const signature = wh.secret ? await hmacSign(payload, wh.secret) : undefined
+											fetch(wh.url, {
+												method: 'POST',
+												headers: {
+													'Content-Type': 'application/json',
+													...(signature ? { 'X-EdgeRoute-Signature': signature } : {}),
+												},
+												body: payload,
+											}).catch(() => {})
+										}
+									}
+								}
+							}
+						}
 
 						// Update budget spend
 						if (budget) {
@@ -393,6 +559,7 @@ proxy.post('/v1/chat/completions', async (c) => {
 				'X-EdgeRoute-Provider': route.provider,
 				'X-EdgeRoute-Model': route.modelId,
 				'X-EdgeRoute-Cache': 'MISS',
+				'X-EdgeRoute-Trace-Id': traceId,
 			}
 			if (autoReason) {
 				responseHeaders['X-EdgeRoute-Auto-Reason'] = autoReason
@@ -400,7 +567,15 @@ proxy.post('/v1/chat/completions', async (c) => {
 			return new Response(result.stream, { headers: responseHeaders })
 		} catch (err) {
 			lastError = err as Error
-			if (err instanceof ProviderError && [429, 500, 503].includes(err.status)) continue
+			if (err instanceof ProviderError && [429, 500, 502, 503].includes(err.status)) {
+				// Record this failure in the health map (best-effort, fire-and-forget).
+				// After 3 failures in 5min the model enters cooldown and subsequent
+				// routing calls will skip it automatically.
+				c.executionCtx.waitUntil(
+					recordFailureKv(c.env.RATE_LIMIT, route.provider, route.modelId, err.status),
+				)
+				continue
+			}
 			throw err
 		}
 	}

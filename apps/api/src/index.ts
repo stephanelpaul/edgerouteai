@@ -6,12 +6,15 @@ import type { AppContext } from './lib/env.js'
 import { authMiddleware } from './middleware/auth.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
 import { sessionOrKeyAuth } from './middleware/session-auth.js'
+import { adminPlatformKeysRoute } from './routes/admin-platform-keys.js'
 import { adminRoute } from './routes/admin.js'
+import { analyticsRoute } from './routes/analytics.js'
 import { apiKeysRoute } from './routes/api-keys.js'
 import { authMeRoute } from './routes/auth-me.js'
 import { authRoute } from './routes/auth.js'
 import { budgetsRoute } from './routes/budgets.js'
 import { exportRoute } from './routes/export.js'
+import { guardrailsRoute } from './routes/guardrails.js'
 import { logsRoute } from './routes/logs.js'
 import { modelAliasesRoute } from './routes/model-aliases.js'
 import { providerKeysRoute } from './routes/provider-keys.js'
@@ -48,14 +51,17 @@ app.route('/api/keys', apiKeysRoute)
 app.route('/api/providers', providerKeysRoute)
 app.route('/api/logs', logsRoute)
 app.route('/api/stats', statsRoute)
+app.route('/api/analytics', analyticsRoute)
 app.route('/api/routing', routingConfigsRoute)
 app.route('/api/account', authMeRoute)
 app.route('/api/aliases', modelAliasesRoute)
 app.route('/api/budgets', budgetsRoute)
 app.route('/api/webhooks', webhooksRoute)
 app.route('/api/transforms', requestTransformsRoute)
+app.route('/api/guardrails', guardrailsRoute)
 app.route('/api/export', exportRoute)
 app.route('/api/admin', adminRoute)
+app.route('/api/admin/platform-keys', adminPlatformKeysRoute)
 
 app.onError((err, c) => {
 	if (err instanceof EdgeRouteError)

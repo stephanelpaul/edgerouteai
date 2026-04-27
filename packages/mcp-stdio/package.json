@@ -1,0 +1,25 @@
+{
+	"name": "@edgerouteai/mcp-stdio",
+	"version": "0.0.1",
+	"description": "Local stdio bridge for EdgeRouteAI's MCP server. Lets Claude Desktop / Cursor / Cline talk to mcp.edgerouteai.com.",
+	"license": "FSL-1.1-Apache-2.0",
+	"type": "module",
+	"main": "./dist/bin.js",
+	"bin": {
+		"edgerouteai-mcp": "./dist/bin.js"
+	},
+	"files": ["dist", "README.md", "LICENSE"],
+	"scripts": {
+		"build": "tsc",
+		"typecheck": "tsc --noEmit",
+		"start": "node ./dist/bin.js"
+	},
+	"engines": {
+		"node": ">=20"
+	},
+	"devDependencies": {
+		"@types/node": "^20.0.0",
+		"typescript": "^5.7.0"
+	},
+	"keywords": ["mcp", "model-context-protocol", "edgerouteai", "claude", "cursor", "llm"]
+}
