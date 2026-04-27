@@ -1,6 +1,7 @@
 import {
 	type ChatMessage,
 	avgCostPerMTok,
+	calculateCost,
 	estimateTokens,
 	getContextLength,
 } from '@edgerouteai/shared'
@@ -20,6 +21,24 @@ export interface AutoRouteOptions {
 	 * smarter detector while keeping this module pure / sync.
 	 */
 	taskTypeOverride?: TaskType
+	/**
+	 * Smart-router v4: when non-empty, restrict the candidate provider set to
+	 * this whitelist (intersected with `availableProviders`). Empty array or
+	 * undefined means "no constraint".
+	 */
+	pinnedProviders?: string[]
+	/**
+	 * Smart-router v4: subtract these providers from the candidate set after
+	 * the pin filter. Empty array or undefined means "no exclusions".
+	 */
+	excludedProviders?: string[]
+	/**
+	 * Smart-router v4: drop models whose estimated cost (input + reserved
+	 * output headroom, at provider list pricing) exceeds this many cents.
+	 * Filtered after the cost-per-Mtok cap and context guard. Undefined =
+	 * no per-request cost ceiling.
+	 */
+	maxCostPerRequestCents?: number
 	/**
 	 * Cap on average $/M tokens ((input + output) / 2). Models above this are
 	 * filtered out before provider-availability is checked. Useful for
@@ -129,6 +148,9 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		availableProviders,
 		tier,
 		taskTypeOverride,
+		pinnedProviders,
+		excludedProviders,
+		maxCostPerRequestCents,
 		costBudgetPerMTok,
 		preferCheaper,
 		estimatedInputTokens,
@@ -136,6 +158,20 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		demotions,
 		nowMs = Date.now(),
 	} = options
+
+	// User preferences narrow the available-provider set first. Pinned acts as
+	// a whitelist (intersection); excluded is a blacklist applied after. An
+	// empty pin list is treated as "no constraint" so omitted prefs behave as
+	// they did before this option existed.
+	let effectiveProviders = availableProviders
+	if (pinnedProviders && pinnedProviders.length > 0) {
+		const pinSet = new Set(pinnedProviders)
+		effectiveProviders = effectiveProviders.filter((p) => pinSet.has(p))
+	}
+	if (excludedProviders && excludedProviders.length > 0) {
+		const excludeSet = new Set(excludedProviders)
+		effectiveProviders = effectiveProviders.filter((p) => !excludeSet.has(p))
+	}
 
 	const taskType = taskTypeOverride ?? detectTaskTypeKeyword(messages)
 	const complexity = detectComplexity(messages)
@@ -224,6 +260,22 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		}
 	}
 
+	// 2b) Per-request cost cap (smart-router v4). Estimates list-price cost
+	//     for input + reserved output headroom and drops any candidate above
+	//     the cap. Unpriced models are kept (calculateCost returns 0) so we
+	//     don't accidentally exclude self-hosted Ollama / new entries that
+	//     don't yet have a pricing row.
+	if (maxCostPerRequestCents !== undefined) {
+		const before = candidates.length
+		candidates = candidates.filter((m) => {
+			const usd = calculateCost(m, tokens, outputHeadroomTokens)
+			return Math.ceil(usd * 100) <= maxCostPerRequestCents
+		})
+		if (candidates.length < before) {
+			reason = `${reason}, filtered to ≤ ${maxCostPerRequestCents}¢/request`
+		}
+	}
+
 	// 3) preferCheaper / auto: sort the top-3 of the filtered ranking by cost
 	//    ascending. Keeps only strong models but picks the cheapest among them.
 	if (effectivePreferCheaper && candidates.length > 1) {
@@ -233,10 +285,11 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		candidates = [...top3, ...rest]
 	}
 
-	// 4) First candidate whose provider the user has access to wins.
+	// 4) First candidate whose provider the user has access to (after pin /
+	//    exclude prefs) wins.
 	for (const modelString of candidates) {
 		const route = resolveRoute(modelString)
-		if (route && availableProviders.includes(route.provider)) {
+		if (route && effectiveProviders.includes(route.provider)) {
 			return {
 				...route,
 				reason: `${reason} → ${modelString}`,
@@ -244,10 +297,11 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		}
 	}
 
-	// 5) Absolute fallback: any model from any available provider that still
-	//    satisfies the cost budget AND the context-fit constraint. Returning a
-	//    model that exceeds either constraint would defeat the caller's intent.
-	for (const provider of availableProviders) {
+	// 5) Absolute fallback: any model from any effective provider that still
+	//    satisfies the cost budget AND the context-fit constraint AND the
+	//    per-request cost cap. Returning a model that exceeds any of these
+	//    would defeat the caller's intent.
+	for (const provider of effectiveProviders) {
 		const fallbacks: Record<string, string> = {
 			openai: 'openai/gpt-5',
 			anthropic: 'anthropic/claude-sonnet-4-6',
@@ -266,6 +320,10 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		if (costBudgetPerMTok !== undefined && avgCostPerMTok(model) > costBudgetPerMTok) continue
 		const ctx = getContextLength(model)
 		if (ctx !== undefined && ctx < needContext) continue
+		if (maxCostPerRequestCents !== undefined) {
+			const usd = calculateCost(model, tokens, outputHeadroomTokens)
+			if (Math.ceil(usd * 100) > maxCostPerRequestCents) continue
+		}
 		const route = resolveRoute(model)
 		if (route) return { ...route, reason: `Fallback to ${provider}` }
 	}

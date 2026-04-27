@@ -9,6 +9,7 @@ import {
 	requestTransforms,
 	routingConfigs,
 	usageLedger,
+	userRouterPreferences,
 	webhooks,
 } from '@edgerouteai/db'
 import {
@@ -21,7 +22,7 @@ import {
 	ProviderKeyMissingError,
 	calculateCost,
 } from '@edgerouteai/shared'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull, or } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { feeCentsForNextByokRequest, getMonthlyByokCount, isPastFreeTier } from '../lib/byok-fee.js'
 import { attemptDebit, computeMarkupCents, getBalanceCents } from '../lib/credits.js'
@@ -33,6 +34,17 @@ import { getPlatformKeyFor } from '../lib/platform-keys.js'
 import { classifyTaskTypeForRequest } from '../lib/router-classifier.js'
 
 const proxy = new Hono<AppContext>()
+
+function safeParseStringArray(raw: string): string[] | undefined {
+	try {
+		const parsed = JSON.parse(raw)
+		if (!Array.isArray(parsed)) return undefined
+		const arr = parsed.filter((x): x is string => typeof x === 'string')
+		return arr.length > 0 ? arr : undefined
+	} catch {
+		return undefined
+	}
+}
 
 async function hashRequest(req: ChatCompletionRequest): Promise<string> {
 	const key = JSON.stringify({
@@ -151,11 +163,33 @@ proxy.post('/v1/chat/completions', async (c) => {
 			messages: body.messages,
 		}).catch(() => null)
 
+		// Smart-router v4: load preferences (pin/exclude providers, max-$/req).
+		// Per-API-key row beats user-default; falls back gracefully if neither
+		// exists. The where clause is OR (apiKeyId == this key) OR (apiKeyId is
+		// NULL), then we sort to prefer the more-specific row.
+		const prefsRows = await db
+			.select()
+			.from(userRouterPreferences)
+			.where(
+				and(
+					eq(userRouterPreferences.userId, userId),
+					or(isNull(userRouterPreferences.apiKeyId), eq(userRouterPreferences.apiKeyId, apiKeyId)),
+				),
+			)
+		const prefRow =
+			prefsRows.find((r) => r.apiKeyId === apiKeyId) ?? prefsRows.find((r) => r.apiKeyId === null)
+		const pinnedProviders = prefRow ? safeParseStringArray(prefRow.pinnedProviders) : undefined
+		const excludedProviders = prefRow ? safeParseStringArray(prefRow.excludedProviders) : undefined
+		const maxCostPerRequestCents = prefRow?.maxCostPerRequestCents ?? undefined
+
 		const autoResult = autoRoute({
 			messages: body.messages,
 			availableProviders,
 			tier,
 			taskTypeOverride: taskTypeOverride ?? undefined,
+			pinnedProviders,
+			excludedProviders,
+			maxCostPerRequestCents,
 			demotions,
 		})
 

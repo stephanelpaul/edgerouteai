@@ -20,6 +20,7 @@ import { modelAliasesRoute } from './routes/model-aliases.js'
 import { providerKeysRoute } from './routes/provider-keys.js'
 import { proxy } from './routes/proxy.js'
 import { requestTransformsRoute } from './routes/request-transforms.js'
+import { routerPrefsRoute } from './routes/router-prefs.js'
 import { routingConfigsRoute } from './routes/routing-configs.js'
 import { statsRoute } from './routes/stats.js'
 import { webhooksRoute } from './routes/webhooks.js'
@@ -53,6 +54,7 @@ app.route('/api/logs', logsRoute)
 app.route('/api/stats', statsRoute)
 app.route('/api/analytics', analyticsRoute)
 app.route('/api/routing', routingConfigsRoute)
+app.route('/api/router-prefs', routerPrefsRoute)
 app.route('/api/account', authMeRoute)
 app.route('/api/aliases', modelAliasesRoute)
 app.route('/api/budgets', budgetsRoute)

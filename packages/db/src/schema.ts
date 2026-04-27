@@ -199,6 +199,27 @@ export const usageLedger = sqliteTable(
 	(table) => [index('usage_ledger_user_created_idx').on(table.userId, table.createdAt)],
 )
 
+// Smart-router v4: per-user / per-API-key preferences for the auto-router.
+// `apiKeyId` NULL = user-wide default; non-NULL = override for that key.
+// JSON columns hold provider-id arrays (e.g. ["openai","anthropic"]) — empty
+// JSON array means "no constraint", not "exclude everything".
+export const userRouterPreferences = sqliteTable(
+	'user_router_preferences',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		apiKeyId: text('api_key_id').references(() => apiKeys.id),
+		pinnedProviders: text('pinned_providers').notNull().default('[]'),
+		excludedProviders: text('excluded_providers').notNull().default('[]'),
+		maxCostPerRequestCents: integer('max_cost_per_request_cents'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+	},
+	(table) => [index('user_router_prefs_user_key_idx').on(table.userId, table.apiKeyId)],
+)
+
 // Payment provider webhook events we've processed, keyed on event.id for
 // idempotency. Provider-agnostic (Polar today, could be anything tomorrow)
 // so the gateway schema doesn't leak the proprietary billing integration.
