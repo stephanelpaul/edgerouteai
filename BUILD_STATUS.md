@@ -21,9 +21,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**12 PRs open.** Day 5 of the 25-day window. 11 providers, smart router (cost + context + failure tracking), credit billing, BYOK fee, MCP, observability dashboard, and guardrails all shipped. Remaining: smart router v2/v4, landing page, docs, onboarding wizard.
+**13 PRs open.** Day 5 of the 25-day window. 11 providers, smart router v1+v2 (keyword + opt-in LLM classifier with KV cache, cost + context + failure tracking), credit billing, BYOK fee, MCP, observability dashboard, and guardrails all shipped. Remaining: smart router v4 (preference overrides), landing page, docs, onboarding wizard.
 
-**% complete:** ~85% of overall 25-day window. 12 feature PRs shipped; 268 tests passing; all 9 workspaces typecheck green.
+**% complete:** ~88% of overall 25-day window. 13 feature PRs shipped; 294 tests passing; all 9 workspaces typecheck green.
 
 👉 **See [HANDOFF.md](HANDOFF.md) for everything you need to do on return** (Polar setup, Cloudflare secrets, DNS, deploy order, smoke-test steps).
 
@@ -45,7 +45,7 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 | 9 | BYOK platform fee (hybrid: 1K free/mo, then \$1/1000) | ✅ done | `feat/byok-fee` | [#14](https://github.com/stephanelpaul/edgerouteai/pull/14) draft |
 | 10.1 | Observability MVP (analytics endpoints + dashboard + trace IDs) | ✅ done | `feat/observability` | [#15](https://github.com/stephanelpaul/edgerouteai/pull/15) draft |
 | 11.1 | Guardrails MVP (PII regex + keyword blocklist; input scope) | ✅ done | `feat/guardrails` | [#16](https://github.com/stephanelpaul/edgerouteai/pull/16) draft |
-| 6.2 | Smart router v2: LLM classifier (follow-up on feat/smart-router) | queued | `feat/smart-router` | — |
+| 6.2 | Smart router v2: LLM classifier — opt-in via SMART_ROUTER_LLM=1, KV-cached, keyword fallback | ✅ done | `feat/smart-router-v2` | [#17](https://github.com/stephanelpaul/edgerouteai/pull/17) draft |
 | 6.4 | Smart router v4: user preference overrides | queued | `feat/smart-router` | — |
 | 10.2 | Observability v2: OTel exporter, Langfuse/Helicone relays, per-request webhook docs | queued | `feat/observability-v2` | — |
 | 11.2 | Guardrails v2: output stream scanning, LLM classifier, webhook veto, dashboard UI | queued | `feat/guardrails-v2` | — |
@@ -56,6 +56,7 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Recent activity (newest first)
 
+- `00c2d82` feat(core,api): smart-router v2 — opt-in LLM classifier with keyword fallback (PR #17)
 - `b0beefe` feat(api,db): guardrails MVP — PII regex + keyword blocklist (PR #16)
 - `d826d66` feat(api,web): observability MVP — analytics + trace IDs (PR #15)
 - `fb8780c` feat(api): BYOK platform fee — free 1K/mo, then \$1 per 1000 reqs (PR #14)

@@ -15,7 +15,7 @@ EdgeRouteAI: an LLM gateway with smart routing, MCP server, and platform-managed
 
 **Started:** 2026-04-22. **Target deadline:** 2026-05-17 (25-day window). **Currently:** Day 5.
 
-**12 draft PRs open, all CI green. 268 tests passing. 9 workspaces typecheck green.**
+**13 draft PRs open, all CI green. 294 tests passing. 9 workspaces typecheck green.**
 
 ```bash
 gh pr list --draft  # see all open PRs
@@ -40,6 +40,7 @@ cat HANDOFF.md      # what user needs to do on return (Polar, Cloudflare secrets
 | 9 | BYOK platform fee | [#14](https://github.com/stephanelpaul/edgerouteai/pull/14) | $1/1000 reqs after 1K free/mo. Pricing slightly adjusted from $0.0001/req — flagged for user |
 | 10.1 | Observability MVP | [#15](https://github.com/stephanelpaul/edgerouteai/pull/15) | Analytics endpoints + dashboard page + trace IDs |
 | 11.1 | Guardrails MVP | [#16](https://github.com/stephanelpaul/edgerouteai/pull/16) | PII regex + keyword blocklist; input scope only |
+| 6.2 | Smart router v2: LLM classifier (opt-in) | [#17](https://github.com/stephanelpaul/edgerouteai/pull/17) | `SMART_ROUTER_LLM=1` to enable; KV-cached 1h; keyword fallback on any error |
 
 **11 providers supported:** OpenAI, Anthropic, Google, Mistral, xAI, Groq, Together AI, Cloudflare Workers AI, Cohere, Ollama, Azure OpenAI.
 
@@ -49,9 +50,8 @@ Pick from this list when continuing work. Each is a single PR-sized chunk.
 
 ### High priority (user-facing differentiators)
 
-1. **Smart router v2: LLM classifier** — replace keyword-based task detection with a Haiku/Flash-Lite call (~$0.0001/routing decision). Branch off `feat/smart-router` as new commits.
-2. **Smart router v4: user preference overrides** — pin/exclude providers, max-$/req per API key. Needs new schema table `user_router_preferences`.
-3. **Landing page polish** — value prop above fold, drop-in code example, pricing table, comparison vs OpenRouter. Edit `apps/web/src/app/page.tsx`. Branch `feat/landing`.
+1. **Smart router v4: user preference overrides** — pin/exclude providers, max-$/req per API key. Needs new schema table `user_router_preferences`. Stack on top of `feat/smart-router-v2`.
+2. **Landing page polish** — value prop above fold, drop-in code example, pricing table, comparison vs OpenRouter. Edit `apps/web/src/app/page.tsx`. Branch `feat/landing`.
 
 ### Medium priority (content-heavy, can run in parallel)
 
@@ -92,6 +92,7 @@ main
  │                                            └── feat/byok-fee   #14
  │                                                 └── feat/observability   #15
  │                                                      └── feat/guardrails   #16
+ │                                                           └── feat/smart-router-v2   #17
 ```
 
 ## Pre-existing WIP I touched
@@ -112,9 +113,9 @@ None blocking right now. The BYOK fee 10x adjustment ($0.001/req vs $0.0001/req)
 1. **Read this file first.** Then `BUILD_STATUS.md` for live progress, `HANDOFF.md` for deploy steps.
 2. **Pull latest:** `git fetch --all && git checkout main && git pull --ff-only`.
 3. **Pick a queued phase from the list above.** High priority first unless user specifies otherwise.
-4. **Branch off the top of the stack** (currently `feat/guardrails`):
+4. **Branch off the top of the stack** (currently `feat/smart-router-v2`):
    ```bash
-   git checkout feat/guardrails
+   git checkout feat/smart-router-v2
    git checkout -b feat/<next-phase>
    ```
 5. **Develop with the same conventions:**
