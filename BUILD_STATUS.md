@@ -21,9 +21,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**9 PRs open.** 25-day window (2026-05-17). Supported providers grew from 5 to **11** (OpenAI, Anthropic, Google, Mistral, xAI, Groq, Together AI, Cloudflare Workers AI, Cohere, Ollama, Azure OpenAI).
+**12 PRs open.** Day 5 of the 25-day window. 11 providers, smart router (cost + context + failure tracking), credit billing, BYOK fee, MCP, observability dashboard, and guardrails all shipped. Remaining: smart router v2/v4, landing page, docs, onboarding wizard.
 
-**% complete:** ~70% of overall 25-day window. 9 feature PRs shipped; 243 tests passing; all 9 workspaces typecheck green.
+**% complete:** ~85% of overall 25-day window. 12 feature PRs shipped; 268 tests passing; all 9 workspaces typecheck green.
 
 👉 **See [HANDOFF.md](HANDOFF.md) for everything you need to do on return** (Polar setup, Cloudflare secrets, DNS, deploy order, smoke-test steps).
 
@@ -42,11 +42,13 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 | 6.3 | Smart router v3: rolling failure / latency tracker (KV) | ✅ done | `feat/smart-router` | [#11](https://github.com/stephanelpaul/edgerouteai/pull/11) (same branch) |
 | 7 | 3 providers: Cloudflare Workers AI, Together, Groq | ✅ done | `feat/providers-1` | [#12](https://github.com/stephanelpaul/edgerouteai/pull/12) draft |
 | 8 | 3 providers: Cohere, Ollama, Azure OpenAI | ✅ done | `feat/providers-2` | [#13](https://github.com/stephanelpaul/edgerouteai/pull/13) draft |
+| 9 | BYOK platform fee (hybrid: 1K free/mo, then \$1/1000) | ✅ done | `feat/byok-fee` | [#14](https://github.com/stephanelpaul/edgerouteai/pull/14) draft |
+| 10.1 | Observability MVP (analytics endpoints + dashboard + trace IDs) | ✅ done | `feat/observability` | [#15](https://github.com/stephanelpaul/edgerouteai/pull/15) draft |
+| 11.1 | Guardrails MVP (PII regex + keyword blocklist; input scope) | ✅ done | `feat/guardrails` | [#16](https://github.com/stephanelpaul/edgerouteai/pull/16) draft |
 | 6.2 | Smart router v2: LLM classifier (follow-up on feat/smart-router) | queued | `feat/smart-router` | — |
 | 6.4 | Smart router v4: user preference overrides | queued | `feat/smart-router` | — |
-| 9 | BYOK platform fee (hybrid: 1K free/mo then $0.0001/req) | queued | `feat/byok-fee` | — |
-| 10 | Observability (OTel, dashboard analytics, per-req webhook, Langfuse/Helicone relay) | queued | `feat/observability` | — |
-| 11 | Guardrails (PII regex, keyword, LLM classifier, webhook veto) | queued | `feat/guardrails` | — |
+| 10.2 | Observability v2: OTel exporter, Langfuse/Helicone relays, per-request webhook docs | queued | `feat/observability-v2` | — |
+| 11.2 | Guardrails v2: output stream scanning, LLM classifier, webhook veto, dashboard UI | queued | `feat/guardrails-v2` | — |
 | 12 | Landing page polish | queued | `feat/landing` | — |
 | 13 | Docs site + content + chatbot integrations | queued | `feat/docs` | — |
 | 14 | Easy-setup polish (config generator, onboarding wizard) | queued | `feat/onboarding` | — |
@@ -54,6 +56,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Recent activity (newest first)
 
+- `b0beefe` feat(api,db): guardrails MVP — PII regex + keyword blocklist (PR #16)
+- `d826d66` feat(api,web): observability MVP — analytics + trace IDs (PR #15)
+- `fb8780c` feat(api): BYOK platform fee — free 1K/mo, then \$1 per 1000 reqs (PR #14)
 - `3a2d9f3` feat(core): add Cohere, Ollama, Azure OpenAI providers (PR #13)
 - `925427b` feat(core): add Groq, Together AI, Cloudflare Workers AI providers (PR #12)
 - `50e51e5` feat(core,api): rolling failure-tracker demotes flaky models automatically (PR #11)
