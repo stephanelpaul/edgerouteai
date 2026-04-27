@@ -22,6 +22,7 @@ import {
 } from '@edgerouteai/shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
+import { feeCentsForNextByokRequest, getMonthlyByokCount, isPastFreeTier } from '../lib/byok-fee.js'
 import { attemptDebit, computeMarkupCents, getBalanceCents } from '../lib/credits.js'
 import { decrypt } from '../lib/crypto.js'
 import type { AppContext } from '../lib/env.js'
@@ -241,6 +242,16 @@ proxy.post('/v1/chat/completions', async (c) => {
 	// UPDATE inside attemptDebit() after the request completes.
 	const balanceCents = await getBalanceCents(db, userId)
 
+	// BYOK platform-fee pre-flight: free first 1000 BYOK requests/month, then
+	// 1¢ per 10 over (≈ $1 per 1000). If user is past free tier with no
+	// balance, refuse with 402 — they can either top up or stop sending.
+	// Counted once here; the post-flight debit in waitUntil uses the same
+	// number plus 1 (for the request we're about to log).
+	const monthlyByokCount = await getMonthlyByokCount(db, userId)
+	if (isPastFreeTier(monthlyByokCount) && balanceCents <= 0) {
+		throw new InsufficientCreditsError()
+	}
+
 	let lastError: Error | null = null
 
 	for (const route of chain) {
@@ -377,6 +388,47 @@ proxy.post('/v1/chat/completions', async (c) => {
 											},
 											body: payload,
 										}).catch(() => {})
+									}
+								}
+							}
+						} else {
+							// BYOK path: 1¢ batched fee every 10 requests past the free
+							// tier. monthlyByokCount was sampled at request start; the
+							// freshly-inserted requestLogs row brings it to (count + 1).
+							const feeCents = feeCentsForNextByokRequest(monthlyByokCount)
+							if (feeCents > 0) {
+								// attemptDebit returns false if balance would go negative.
+								// We don't surface that to the client (the request already
+								// succeeded), but we do log it via webhook so the user/agent
+								// knows their next request will 402.
+								const debited = await attemptDebit(db, userId, feeCents)
+								if (!debited) {
+									const userWebhooks = await db
+										.select()
+										.from(webhooks)
+										.where(and(eq(webhooks.userId, userId), eq(webhooks.isActive, true)))
+									const payload = JSON.stringify({
+										event: 'credits.exhausted',
+										data: {
+											userId,
+											triedDebitCents: feeCents,
+											byokOverageBoundary: true,
+											timestamp: new Date().toISOString(),
+										},
+									})
+									for (const wh of userWebhooks) {
+										const events = JSON.parse(wh.events)
+										if (events.includes('credits.exhausted')) {
+											const signature = wh.secret ? await hmacSign(payload, wh.secret) : undefined
+											fetch(wh.url, {
+												method: 'POST',
+												headers: {
+													'Content-Type': 'application/json',
+													...(signature ? { 'X-EdgeRoute-Signature': signature } : {}),
+												},
+												body: payload,
+											}).catch(() => {})
+										}
 									}
 								}
 							}
