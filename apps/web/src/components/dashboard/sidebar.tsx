@@ -11,6 +11,7 @@ const navItems = [
 	{ href: '/dashboard/providers', label: 'Providers' },
 	{ href: '/dashboard/billing', label: 'Billing' },
 	{ href: '/dashboard/logs', label: 'Logs' },
+	{ href: '/dashboard/analytics', label: 'Analytics' },
 	{ href: '/dashboard/routing', label: 'Routing' },
 	{ href: '/dashboard/aliases', label: 'Aliases' },
 	{ href: '/dashboard/webhooks', label: 'Webhooks' },

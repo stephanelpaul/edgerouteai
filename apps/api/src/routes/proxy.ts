@@ -98,6 +98,11 @@ proxy.post('/v1/chat/completions', async (c) => {
 	const body = await c.req.json<ChatCompletionRequest>()
 	const db = createDb(c.env.DB)
 
+	// Trace ID for this request — surfaced in the X-EdgeRoute-Trace-Id
+	// response header AND used as the request_logs.id so users can correlate
+	// dashboard logs with their own observability stack.
+	const traceId = crypto.randomUUID()
+
 	let resolvedModel = body.model
 	let autoReason: string | undefined
 
@@ -188,6 +193,7 @@ proxy.post('/v1/chat/completions', async (c) => {
 					'Cache-Control': 'no-cache',
 					Connection: 'keep-alive',
 					'X-EdgeRoute-Cache': 'HIT',
+					'X-EdgeRoute-Trace-Id': traceId,
 				},
 			})
 		}
@@ -329,7 +335,7 @@ proxy.post('/v1/chat/completions', async (c) => {
 						const modelString = `${route.provider}/${route.modelId}`
 						const costUsd = calculateCost(modelString, usage.prompt_tokens, usage.completion_tokens)
 
-						const logId = crypto.randomUUID()
+						const logId = traceId
 						await db.insert(requestLogs).values({
 							id: logId,
 							userId,
@@ -528,6 +534,7 @@ proxy.post('/v1/chat/completions', async (c) => {
 				'X-EdgeRoute-Provider': route.provider,
 				'X-EdgeRoute-Model': route.modelId,
 				'X-EdgeRoute-Cache': 'MISS',
+				'X-EdgeRoute-Trace-Id': traceId,
 			}
 			if (autoReason) {
 				responseHeaders['X-EdgeRoute-Auto-Reason'] = autoReason
