@@ -9,10 +9,10 @@ describe('Pricing', () => {
 		}
 	})
 
-	it('all prices are positive numbers', () => {
+	it('all prices are non-negative numbers (0 allowed for self-hosted like Ollama)', () => {
 		for (const [key, price] of Object.entries(PRICING)) {
-			expect(price.inputPerMillion, `${key} input`).toBeGreaterThan(0)
-			expect(price.outputPerMillion, `${key} output`).toBeGreaterThan(0)
+			expect(price.inputPerMillion, `${key} input`).toBeGreaterThanOrEqual(0)
+			expect(price.outputPerMillion, `${key} output`).toBeGreaterThanOrEqual(0)
 		}
 	})
 
