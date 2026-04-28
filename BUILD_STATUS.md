@@ -21,9 +21,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**15 PRs open.** Day 5 of the 25-day window. 11 providers, smart router v1+v2+v4, credit billing, BYOK fee, MCP, observability dashboard, guardrails, and a polished landing page all shipped. Remaining: docs site, onboarding wizard, observability v2, guardrails v2, polish.
+**16 PRs open.** Day 6 of the 25-day window. 11 providers, smart router v1+v2+v4 (with dashboard UI), credit billing, BYOK fee, MCP, observability dashboard, guardrails, and a polished landing page all shipped. Remaining: docs site, onboarding wizard, observability v2, guardrails v2, polish.
 
-**% complete:** ~92% of overall 25-day window. 15 feature PRs shipped; 307 tests passing; all 9 workspaces typecheck green.
+**% complete:** ~93% of overall 25-day window. 16 feature PRs shipped; 307 tests passing; all 9 workspaces typecheck green.
 
 👉 **See [HANDOFF.md](HANDOFF.md) for everything you need to do on return** (Polar setup, Cloudflare secrets, DNS, deploy order, smoke-test steps).
 
@@ -48,6 +48,7 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 | 6.2 | Smart router v2: LLM classifier — opt-in via SMART_ROUTER_LLM=1, KV-cached, keyword fallback | ✅ done | `feat/smart-router-v2` | [#17](https://github.com/stephanelpaul/edgerouteai/pull/17) draft |
 | 6.4 | Smart router v4: user preference overrides — pin/exclude providers + max-¢/req per (user, apiKey) | ✅ done | `feat/router-prefs` | [#18](https://github.com/stephanelpaul/edgerouteai/pull/18) draft |
 | 12 | Landing page polish — hero + drop-in code tabs + pricing + comparison vs OpenRouter | ✅ done | `feat/landing` | [#19](https://github.com/stephanelpaul/edgerouteai/pull/19) draft |
+| 6.5 | Router-prefs dashboard UI — pin/exclude chips + ¢/req cap input driving /api/router-prefs | ✅ done | `feat/router-prefs-ui` | [#20](https://github.com/stephanelpaul/edgerouteai/pull/20) draft |
 | 10.2 | Observability v2: OTel exporter, Langfuse/Helicone relays, per-request webhook docs | queued | `feat/observability-v2` | — |
 | 11.2 | Guardrails v2: output stream scanning, LLM classifier, webhook veto, dashboard UI | queued | `feat/guardrails-v2` | — |
 | 13 | Docs site + content + chatbot integrations | queued | `feat/docs` | — |
@@ -56,6 +57,7 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Recent activity (newest first)
 
+- `e1a3140` feat(web): router-prefs dashboard UI for smart-router v4 endpoints (PR #20)
 - `e0206d2` feat(web): landing page polish — hero, drop-in code, pricing, comparison (PR #19)
 - `e521ad8` feat(core,api,db): smart-router v4 — user preference overrides (PR #18)
 - `00c2d82` feat(core,api): smart-router v2 — opt-in LLM classifier with keyword fallback (PR #17)
