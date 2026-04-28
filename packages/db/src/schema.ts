@@ -129,3 +129,105 @@ export const requestTransforms = sqliteTable('request_transforms', {
 	isActive: integer('is_active', { mode: 'boolean' }).default(true),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })
+
+// Guardrails: per-api-key safety rules. config JSON shape:
+//   {
+//     blockPii?: { categories: ("email" | "phone" | "ssn" | "creditcard")[] },
+//     blockedKeywords?: string[],
+//     applyTo: "input" | "output" | "both",
+//   }
+// Action is implicit: "block" (return 400 with code "guardrail_blocked").
+// Multiple rules per key are OR-combined: any match blocks the request.
+export const guardrails = sqliteTable(
+	'guardrails',
+	{
+		id: text('id').primaryKey(),
+		apiKeyId: text('api_key_id')
+			.notNull()
+			.references(() => apiKeys.id),
+		name: text('name').notNull(),
+		config: text('config').notNull(),
+		isActive: integer('is_active', { mode: 'boolean' }).default(true),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+	},
+	(table) => [index('guardrails_api_key_idx').on(table.apiKeyId)],
+)
+
+// Platform-held upstream keys. One row per (provider, label); not user-owned.
+// Used when a user opts into platform-managed keys and pays via credits.
+export const platformUpstreamKeys = sqliteTable(
+	'platform_upstream_keys',
+	{
+		id: text('id').primaryKey(),
+		provider: text('provider').notNull(),
+		label: text('label').default('Default'),
+		encryptedKey: blob('encrypted_key', { mode: 'buffer' }).notNull(),
+		iv: blob('iv', { mode: 'buffer' }).notNull(),
+		isActive: integer('is_active', { mode: 'boolean' }).default(true),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+	},
+	(table) => [index('platform_upstream_keys_provider_idx').on(table.provider)],
+)
+
+// User credit balance in integer cents. Kept small for atomic UPDATE ops.
+export const userCredits = sqliteTable('user_credits', {
+	userId: text('user_id')
+		.primaryKey()
+		.references(() => users.id),
+	balanceCents: integer('balance_cents').notNull().default(0),
+	lifetimeToppedUpCents: integer('lifetime_topped_up_cents').notNull().default(0),
+	lifetimeSpentCents: integer('lifetime_spent_cents').notNull().default(0),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+// One row per platform-key request: provider cost + our markup + total debited.
+export const usageLedger = sqliteTable(
+	'usage_ledger',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		requestLogId: text('request_log_id')
+			.notNull()
+			.references(() => requestLogs.id),
+		costCents: integer('cost_cents').notNull(),
+		markupCents: integer('markup_cents').notNull(),
+		totalDebitedCents: integer('total_debited_cents').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+	},
+	(table) => [index('usage_ledger_user_created_idx').on(table.userId, table.createdAt)],
+)
+
+// Smart-router v4: per-user / per-API-key preferences for the auto-router.
+// `apiKeyId` NULL = user-wide default; non-NULL = override for that key.
+// JSON columns hold provider-id arrays (e.g. ["openai","anthropic"]) — empty
+// JSON array means "no constraint", not "exclude everything".
+export const userRouterPreferences = sqliteTable(
+	'user_router_preferences',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		apiKeyId: text('api_key_id').references(() => apiKeys.id),
+		pinnedProviders: text('pinned_providers').notNull().default('[]'),
+		excludedProviders: text('excluded_providers').notNull().default('[]'),
+		maxCostPerRequestCents: integer('max_cost_per_request_cents'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+	},
+	(table) => [index('user_router_prefs_user_key_idx').on(table.userId, table.apiKeyId)],
+)
+
+// Payment provider webhook events we've processed, keyed on event.id for
+// idempotency. Provider-agnostic (Polar today, could be anything tomorrow)
+// so the gateway schema doesn't leak the proprietary billing integration.
+export const paymentEvents = sqliteTable('payment_events', {
+	eventId: text('event_id').primaryKey(),
+	provider: text('provider').notNull(), // "polar" | ...
+	type: text('type').notNull(),
+	userId: text('user_id').references(() => users.id),
+	amountCents: integer('amount_cents'),
+	processedAt: integer('processed_at', { mode: 'timestamp_ms' }).notNull(),
+})
