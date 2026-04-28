@@ -15,7 +15,7 @@ EdgeRouteAI: an LLM gateway with smart routing, MCP server, and platform-managed
 
 **Started:** 2026-04-22. **Target deadline:** 2026-05-17 (25-day window). **Currently:** Day 6.
 
-**16 draft PRs open, all CI green. 307 tests passing. 9 workspaces typecheck green.**
+**17 draft PRs open, all CI green. 307 tests passing. 9 workspaces typecheck green.**
 
 ```bash
 gh pr list --draft  # see all open PRs
@@ -44,6 +44,7 @@ cat HANDOFF.md      # what user needs to do on return (Polar, Cloudflare secrets
 | 6.4 | Smart router v4: user preference overrides | [#18](https://github.com/stephanelpaul/edgerouteai/pull/18) | `user_router_preferences` table; pin/exclude providers + max-¢/req cap; per-key overrides user-default |
 | 12 | Landing page polish | [#19](https://github.com/stephanelpaul/edgerouteai/pull/19) | Hero + tabbed drop-in code (curl/JS/Py/MCP) + 3 pricing cards + comparison table |
 | 6.5 | Router-prefs dashboard UI | [#20](https://github.com/stephanelpaul/edgerouteai/pull/20) | Scope dropdown + tri-state pin/exclude per provider + ¢/req cap; drives /api/router-prefs |
+| 14 | Onboarding wizard + config generator | [#21](https://github.com/stephanelpaul/edgerouteai/pull/21) | /dashboard/setup with auto-detect 3-step checklist + JSON/SDK generator for Claude Desktop / Cursor / Cline / Continue / OpenAI SDK |
 
 **11 providers supported:** OpenAI, Anthropic, Google, Mistral, xAI, Groq, Together AI, Cloudflare Workers AI, Cohere, Ollama, Azure OpenAI.
 
@@ -53,8 +54,7 @@ Pick from this list when continuing work. Each is a single PR-sized chunk.
 
 ### High priority (user-facing differentiators)
 
-1. **Easy-setup polish** — copy-paste config generator for Claude Desktop / Cursor JSON, first-login 3-step checklist on the dashboard. Branch `feat/onboarding`.
-2. **Docs site + chatbot integration guides** — native docs route at `apps/web/src/app/docs/`. One page each for Quickstart, Auth, BYOK-per-provider, MCP, LangChain, Observability, Guardrails, Self-hosting, API Reference, plus 10 chatbot integration guides. Branch `feat/docs`.
+1. **Docs site + chatbot integration guides** — native docs route at `apps/web/src/app/docs/`. One page each for Quickstart, Auth, BYOK-per-provider, MCP, LangChain, Observability, Guardrails, Self-hosting, API Reference, plus 10 chatbot integration guides. Branch `feat/docs`.
 
 ### Lower priority (v2 features)
 
@@ -94,6 +94,7 @@ main
  │                                                                └── feat/router-prefs   #18
  │                                                                     └── feat/landing   #19
  │                                                                          └── feat/router-prefs-ui   #20
+ │                                                                               └── feat/onboarding   #21
 ```
 
 ## Pre-existing WIP I touched
@@ -114,9 +115,9 @@ None blocking right now. The BYOK fee 10x adjustment ($0.001/req vs $0.0001/req)
 1. **Read this file first.** Then `BUILD_STATUS.md` for live progress, `HANDOFF.md` for deploy steps.
 2. **Pull latest:** `git fetch --all && git checkout main && git pull --ff-only`.
 3. **Pick a queued phase from the list above.** High priority first unless user specifies otherwise.
-4. **Branch off the top of the stack** (currently `feat/router-prefs-ui`):
+4. **Branch off the top of the stack** (currently `feat/onboarding`):
    ```bash
-   git checkout feat/router-prefs-ui
+   git checkout feat/onboarding
    git checkout -b feat/<next-phase>
    ```
 5. **Develop with the same conventions:**
