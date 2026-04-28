@@ -13,6 +13,7 @@ const navItems = [
 	{ href: '/dashboard/logs', label: 'Logs' },
 	{ href: '/dashboard/analytics', label: 'Analytics' },
 	{ href: '/dashboard/routing', label: 'Routing' },
+	{ href: '/dashboard/router-prefs', label: 'Router Prefs' },
 	{ href: '/dashboard/aliases', label: 'Aliases' },
 	{ href: '/dashboard/webhooks', label: 'Webhooks' },
 	{ href: '/dashboard/transforms', label: 'Transforms' },
