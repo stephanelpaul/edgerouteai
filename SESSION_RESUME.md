@@ -13,9 +13,9 @@ EdgeRouteAI: an LLM gateway with smart routing, MCP server, and platform-managed
 
 ## Where we are
 
-**Started:** 2026-04-22. **Target deadline:** 2026-05-17 (25-day window). **Currently:** Day 6.
+**Started:** 2026-04-22. **Target deadline:** 2026-05-17 (25-day window). **Currently:** Day 7.
 
-**17 draft PRs open, all CI green. 307 tests passing. 9 workspaces typecheck green.**
+**18 draft PRs open, all CI green. 307 tests passing. 9 workspaces typecheck green.**
 
 ```bash
 gh pr list --draft  # see all open PRs
@@ -45,6 +45,7 @@ cat HANDOFF.md      # what user needs to do on return (Polar, Cloudflare secrets
 | 12 | Landing page polish | [#19](https://github.com/stephanelpaul/edgerouteai/pull/19) | Hero + tabbed drop-in code (curl/JS/Py/MCP) + 3 pricing cards + comparison table |
 | 6.5 | Router-prefs dashboard UI | [#20](https://github.com/stephanelpaul/edgerouteai/pull/20) | Scope dropdown + tri-state pin/exclude per provider + ¢/req cap; drives /api/router-prefs |
 | 14 | Onboarding wizard + config generator | [#21](https://github.com/stephanelpaul/edgerouteai/pull/21) | /dashboard/setup with auto-detect 3-step checklist + JSON/SDK generator for Claude Desktop / Cursor / Cline / Continue / OpenAI SDK |
+| 13 | Docs site (10 pages) | [#22](https://github.com/stephanelpaul/edgerouteai/pull/22) | /docs with sidebar nav: overview, quickstart, auth, byok, mcp, integrations, observability, guardrails, api-reference, self-host. Landing nav links to it |
 
 **11 providers supported:** OpenAI, Anthropic, Google, Mistral, xAI, Groq, Together AI, Cloudflare Workers AI, Cohere, Ollama, Azure OpenAI.
 
@@ -52,15 +53,11 @@ cat HANDOFF.md      # what user needs to do on return (Polar, Cloudflare secrets
 
 Pick from this list when continuing work. Each is a single PR-sized chunk.
 
-### High priority (user-facing differentiators)
-
-1. **Docs site + chatbot integration guides** — native docs route at `apps/web/src/app/docs/`. One page each for Quickstart, Auth, BYOK-per-provider, MCP, LangChain, Observability, Guardrails, Self-hosting, API Reference, plus 10 chatbot integration guides. Branch `feat/docs`.
-
 ### Lower priority (v2 features)
 
-6. **Observability v2** — OTel-over-HTTP exporter, Langfuse/Helicone/Braintrust relays. New schema `otel_exporters` table.
-7. **Guardrails v2** — output stream scanning, LLM-based classifier, webhook-veto, dashboard UI for guardrail config. Currently API-only.
-8. **Polish + integration tests** — atomic credit-debit test under miniflare, end-to-end smoke script, seed-platform-key script.
+1. **Observability v2** — OTel-over-HTTP exporter, Langfuse/Helicone/Braintrust relays. New schema `otel_exporters` table.
+2. **Guardrails v2** — output stream scanning, LLM-based classifier, webhook-veto, dashboard UI for guardrail config. Currently API-only.
+3. **Polish + integration tests** — atomic credit-debit test under miniflare, end-to-end smoke script, seed-platform-key script.
 
 ## Key decisions locked (don't relitigate without checking with user)
 
@@ -95,6 +92,7 @@ main
  │                                                                     └── feat/landing   #19
  │                                                                          └── feat/router-prefs-ui   #20
  │                                                                               └── feat/onboarding   #21
+ │                                                                                    └── feat/docs   #22
 ```
 
 ## Pre-existing WIP I touched
@@ -115,9 +113,9 @@ None blocking right now. The BYOK fee 10x adjustment ($0.001/req vs $0.0001/req)
 1. **Read this file first.** Then `BUILD_STATUS.md` for live progress, `HANDOFF.md` for deploy steps.
 2. **Pull latest:** `git fetch --all && git checkout main && git pull --ff-only`.
 3. **Pick a queued phase from the list above.** High priority first unless user specifies otherwise.
-4. **Branch off the top of the stack** (currently `feat/onboarding`):
+4. **Branch off the top of the stack** (currently `feat/docs`):
    ```bash
-   git checkout feat/onboarding
+   git checkout feat/docs
    git checkout -b feat/<next-phase>
    ```
 5. **Develop with the same conventions:**

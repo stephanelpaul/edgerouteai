@@ -21,9 +21,9 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 
 ## Current phase
 
-**17 PRs open.** Day 6 of the 25-day window. 11 providers, smart router v1+v2+v4 (with dashboard UI), credit billing, BYOK fee, MCP, observability dashboard, guardrails, polished landing page, and the /dashboard/setup onboarding flow with config generator all shipped. Remaining: docs site, observability v2, guardrails v2, polish.
+**18 PRs open.** Day 7 of the 25-day window. Full feature set shipped: 11 providers, smart router v1+v2+v4 with dashboard UI, credit billing, BYOK fee, MCP (HTTP + stdio), observability dashboard, guardrails, polished landing page, /dashboard/setup onboarding with config generator, and a 10-page /docs site. Remaining: observability v2, guardrails v2, polish/integration tests.
 
-**% complete:** ~94% of overall 25-day window. 17 feature PRs shipped; 307 tests passing; all 9 workspaces typecheck green.
+**% complete:** ~96% of overall 25-day window. 18 feature PRs shipped; 307 tests passing; all 9 workspaces typecheck green.
 
 👉 **See [HANDOFF.md](HANDOFF.md) for everything you need to do on return** (Polar setup, Cloudflare secrets, DNS, deploy order, smoke-test steps).
 
@@ -50,13 +50,14 @@ Or on GitHub: open repo → check the draft PRs → skim diffs on your phone.
 | 12 | Landing page polish — hero + drop-in code tabs + pricing + comparison vs OpenRouter | ✅ done | `feat/landing` | [#19](https://github.com/stephanelpaul/edgerouteai/pull/19) draft |
 | 6.5 | Router-prefs dashboard UI — pin/exclude chips + ¢/req cap input driving /api/router-prefs | ✅ done | `feat/router-prefs-ui` | [#20](https://github.com/stephanelpaul/edgerouteai/pull/20) draft |
 | 14 | Onboarding: /dashboard/setup with 3-step checklist + multi-client config generator | ✅ done | `feat/onboarding` | [#21](https://github.com/stephanelpaul/edgerouteai/pull/21) draft |
+| 13 | Docs site — 10 pages (overview, quickstart, auth, byok, mcp, integrations, observability, guardrails, api-ref, self-host) | ✅ done | `feat/docs` | [#22](https://github.com/stephanelpaul/edgerouteai/pull/22) draft |
 | 10.2 | Observability v2: OTel exporter, Langfuse/Helicone relays, per-request webhook docs | queued | `feat/observability-v2` | — |
 | 11.2 | Guardrails v2: output stream scanning, LLM classifier, webhook veto, dashboard UI | queued | `feat/guardrails-v2` | — |
-| 13 | Docs site + content + chatbot integrations | queued | `feat/docs` | — |
 | 15 | Polish + integration tests | queued | per-branch | — |
 
 ## Recent activity (newest first)
 
+- `90a4bb1` feat(web): /docs site with 10 pages covering quickstart through self-hosting (PR #22)
 - `e19c084` feat(web): /dashboard/setup — 3-step checklist + copy-paste config generator (PR #21)
 - `e1a3140` feat(web): router-prefs dashboard UI for smart-router v4 endpoints (PR #20)
 - `e0206d2` feat(web): landing page polish — hero, drop-in code, pricing, comparison (PR #19)
