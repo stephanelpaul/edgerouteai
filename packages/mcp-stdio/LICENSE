@@ -1,0 +1,10 @@
+This package is licensed under the Functional Source License, Version 1.1,
+Apache 2.0 Future License (FSL-1.1-Apache-2.0).
+
+See the top-level LICENSE file in the EdgeRouteAI monorepo for the full text:
+https://github.com/edgerouteai/edgerouteai/blob/main/LICENSE
+
+Summary: free for any Permitted Purpose (internal use, self-hosting as part
+of your own app, non-commercial research) — the only excluded use is offering
+a substantially-similar competing hosted service. Converts to Apache 2.0 on
+2028-04-22.
