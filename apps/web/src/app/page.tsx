@@ -95,6 +95,9 @@ export default function HomePage() {
 						EdgeRouteAI
 					</Link>
 					<div className="flex items-center gap-3 text-sm">
+						<Link href="/docs" className="text-neutral-400 hover:text-neutral-200 transition">
+							Docs
+						</Link>
 						<a
 							href="https://github.com/stephanelpaul/edgerouteai"
 							className="hidden sm:inline text-neutral-400 hover:text-neutral-200 transition"
@@ -303,6 +306,9 @@ export default function HomePage() {
 				<div className="mx-auto max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-neutral-500">
 					<span>© 2026 EdgeRouteAI · FSL-1.1 (gateway), proprietary (dashboard)</span>
 					<div className="flex gap-4">
+						<Link href="/docs" className="hover:text-neutral-300">
+							Docs
+						</Link>
 						<a
 							href="https://github.com/stephanelpaul/edgerouteai"
 							className="hover:text-neutral-300"
