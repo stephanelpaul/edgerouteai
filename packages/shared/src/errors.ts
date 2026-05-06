@@ -56,3 +56,24 @@ export class ProviderKeyMissingError extends EdgeRouteError {
 		)
 	}
 }
+
+export class InsufficientCreditsError extends EdgeRouteError {
+	constructor() {
+		super(
+			'Insufficient credits. Top up your balance to continue using platform-managed keys, or add your own provider key for zero-markup usage.',
+			'insufficient_credits',
+			402,
+		)
+	}
+
+	override toJSON() {
+		return {
+			error: {
+				message: this.message,
+				code: this.code,
+				type: 'edgeroute_error',
+				top_up_url: 'https://app.edgerouteai.com/dashboard/billing',
+			},
+		}
+	}
+}

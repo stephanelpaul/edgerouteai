@@ -1,12 +1,79 @@
-import type { ChatMessage } from '@edgerouteai/shared'
+import {
+	type ChatMessage,
+	avgCostPerMTok,
+	calculateCost,
+	estimateTokens,
+	getContextLength,
+} from '@edgerouteai/shared'
+import { type TaskType, detectTaskTypeKeyword } from './classifier.js'
+import { type DemotionMap, filterDemoted } from './health.js'
 import { type ResolvedRoute, resolveRoute } from './resolver.js'
 
-export type CostTier = 'quality' | 'balanced' | 'budget'
+export type CostTier = 'quality' | 'balanced' | 'budget' | 'auto'
 
 export interface AutoRouteOptions {
 	messages: ChatMessage[]
 	availableProviders: string[]
 	tier?: CostTier
+	/**
+	 * Pre-computed task verdict (e.g. from an LLM classifier in the gateway).
+	 * When provided, the keyword scan is skipped. Lets the gateway swap in a
+	 * smarter detector while keeping this module pure / sync.
+	 */
+	taskTypeOverride?: TaskType
+	/**
+	 * Smart-router v4: when non-empty, restrict the candidate provider set to
+	 * this whitelist (intersected with `availableProviders`). Empty array or
+	 * undefined means "no constraint".
+	 */
+	pinnedProviders?: string[]
+	/**
+	 * Smart-router v4: subtract these providers from the candidate set after
+	 * the pin filter. Empty array or undefined means "no exclusions".
+	 */
+	excludedProviders?: string[]
+	/**
+	 * Smart-router v4: drop models whose estimated cost (input + reserved
+	 * output headroom, at provider list pricing) exceeds this many cents.
+	 * Filtered after the cost-per-Mtok cap and context guard. Undefined =
+	 * no per-request cost ceiling.
+	 */
+	maxCostPerRequestCents?: number
+	/**
+	 * Cap on average $/M tokens ((input + output) / 2). Models above this are
+	 * filtered out before provider-availability is checked. Useful for
+	 * budget-conscious agents.
+	 */
+	costBudgetPerMTok?: number
+	/**
+	 * When true, sort the candidate ranking by cost ascending within the top-3
+	 * of the matching tier, rather than strict ranking order. Favors cheaper
+	 * models without dropping quality off a cliff.
+	 *
+	 * `tier: "auto"` implies this.
+	 */
+	preferCheaper?: boolean
+	/**
+	 * Override the estimated input-token count used for the context-window
+	 * guard. Defaults to estimating from `messages`. Set explicitly if the
+	 * caller wants to reserve headroom for the output.
+	 */
+	estimatedInputTokens?: number
+	/**
+	 * Additional output-token headroom to reserve above the input when
+	 * checking context fit. Default: 4096 tokens.
+	 */
+	outputHeadroomTokens?: number
+	/**
+	 * Health map — models currently in failure-cooldown are filtered out.
+	 * Caller (the gateway) loads this from KV once per request; pass it in
+	 * via this option. Router stays pure / sync.
+	 */
+	demotions?: DemotionMap
+	/**
+	 * Clock override for tests. Defaults to Date.now().
+	 */
+	nowMs?: number
 }
 
 export interface AutoRouteResult extends ResolvedRoute {
@@ -37,7 +104,12 @@ const BALANCED_RANKING = [
 ]
 
 const BUDGET_RANKING = [
+	'cloudflare/llama-3.2-3b', // ~$0.05/Mtok, zero egress on CF
+	'groq/llama-3.1-8b-instant', // ~$0.07/Mtok avg, fastest inference
 	'google/gemini-2.5-flash-lite',
+	'groq/mixtral-8x7b-32768',
+	'cloudflare/llama-3.1-8b',
+	'together/llama-3.1-8b',
 	'google/gemini-2.5-flash-preview-04-17',
 	'mistral/mistral-small-latest',
 	'openai/gpt-5.4-mini',
@@ -54,54 +126,10 @@ const CODE_RANKING = [
 	'anthropic/claude-opus-4-6',
 	'google/gemini-2.5-pro-preview-03-25',
 	'openai/gpt-4o',
+	'together/qwen-2.5-coder-32b', // cheap coder option
+	'groq/qwen-2.5-coder-32b',
 	'xai/grok-4.20',
 ]
-
-function detectTaskType(messages: ChatMessage[]): 'code' | 'creative' | 'general' {
-	const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
-	if (!lastUserMsg) return 'general'
-
-	const content = typeof lastUserMsg.content === 'string' ? lastUserMsg.content.toLowerCase() : ''
-
-	const codeKeywords = [
-		'code',
-		'function',
-		'debug',
-		'error',
-		'implement',
-		'programming',
-		'typescript',
-		'python',
-		'javascript',
-		'api',
-		'bug',
-		'fix',
-		'refactor',
-		'class',
-		'interface',
-		'component',
-		'react',
-		'sql',
-		'query',
-		'algorithm',
-	]
-	const creativeKeywords = [
-		'write',
-		'story',
-		'poem',
-		'creative',
-		'essay',
-		'blog',
-		'article',
-		'draft',
-		'compose',
-		'narrative',
-	]
-
-	if (codeKeywords.some((kw) => content.includes(kw))) return 'code'
-	if (creativeKeywords.some((kw) => content.includes(kw))) return 'creative'
-	return 'general'
-}
 
 function detectComplexity(messages: ChatMessage[]): 'simple' | 'complex' {
 	const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
@@ -115,13 +143,43 @@ function detectComplexity(messages: ChatMessage[]): 'simple' | 'complex' {
 }
 
 export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
-	const { messages, availableProviders, tier } = options
+	const {
+		messages,
+		availableProviders,
+		tier,
+		taskTypeOverride,
+		pinnedProviders,
+		excludedProviders,
+		maxCostPerRequestCents,
+		costBudgetPerMTok,
+		preferCheaper,
+		estimatedInputTokens,
+		outputHeadroomTokens = 4096,
+		demotions,
+		nowMs = Date.now(),
+	} = options
 
-	const taskType = detectTaskType(messages)
+	// User preferences narrow the available-provider set first. Pinned acts as
+	// a whitelist (intersection); excluded is a blacklist applied after. An
+	// empty pin list is treated as "no constraint" so omitted prefs behave as
+	// they did before this option existed.
+	let effectiveProviders = availableProviders
+	if (pinnedProviders && pinnedProviders.length > 0) {
+		const pinSet = new Set(pinnedProviders)
+		effectiveProviders = effectiveProviders.filter((p) => pinSet.has(p))
+	}
+	if (excludedProviders && excludedProviders.length > 0) {
+		const excludeSet = new Set(excludedProviders)
+		effectiveProviders = effectiveProviders.filter((p) => !excludeSet.has(p))
+	}
+
+	const taskType = taskTypeOverride ?? detectTaskTypeKeyword(messages)
 	const complexity = detectComplexity(messages)
+	const taskVerb = taskTypeOverride ? 'Classified' : 'Detected'
 
 	// Pick the ranking based on task type and tier
-	// Explicit tier always overrides task detection
+	// Explicit tier always overrides task detection, EXCEPT "auto" which still
+	// does task detection but applies cost-preferring sort.
 	let ranking: string[]
 	let reason: string
 
@@ -134,12 +192,28 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 	} else if (tier === 'balanced') {
 		ranking = BALANCED_RANKING
 		reason = 'Using balanced tier'
+	} else if (tier === 'auto') {
+		// auto = task-aware + cost-preferring. Picks from the matching category
+		// but prefers the cheapest model that clears the quality bar.
+		if (taskType === 'code') {
+			ranking = CODE_RANKING
+			reason = `Auto: ${taskVerb.toLowerCase()} coding task, cost-preferring`
+		} else if (taskType === 'creative') {
+			ranking = QUALITY_RANKING
+			reason = `Auto: ${taskVerb.toLowerCase()} creative task, cost-preferring`
+		} else if (complexity === 'simple') {
+			ranking = BUDGET_RANKING
+			reason = 'Auto: simple query, cost-preferring'
+		} else {
+			ranking = BALANCED_RANKING
+			reason = 'Auto: balanced default, cost-preferring'
+		}
 	} else if (taskType === 'code') {
 		ranking = CODE_RANKING
-		reason = 'Detected coding task'
+		reason = `${taskVerb} coding task`
 	} else if (taskType === 'creative') {
 		ranking = QUALITY_RANKING
-		reason = 'Detected creative task, using quality models'
+		reason = `${taskVerb} creative task, using quality models`
 	} else if (complexity === 'simple') {
 		ranking = BUDGET_RANKING
 		reason = 'Simple query detected, using budget models'
@@ -148,10 +222,74 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		reason = 'Using balanced tier'
 	}
 
-	// Find first model where user has the provider key
-	for (const modelString of ranking) {
+	const effectivePreferCheaper = preferCheaper || tier === 'auto'
+
+	// 1a) Health filter: drop models currently in failure-cooldown. Runs first
+	//     so neither cost nor context filters waste work on a dead model.
+	let candidates = ranking
+	if (demotions && Object.keys(demotions).length > 0) {
+		const before = candidates.length
+		candidates = filterDemoted(candidates, demotions, nowMs)
+		if (candidates.length < before) {
+			reason = `${reason}, skipping ${before - candidates.length} demoted model(s)`
+		}
+	}
+
+	// 1b) Cost-budget filter (if set).
+	if (costBudgetPerMTok !== undefined) {
+		const before = candidates.length
+		candidates = candidates.filter((m) => avgCostPerMTok(m) <= costBudgetPerMTok)
+		if (candidates.length < before) {
+			reason = `${reason}, filtered to ≤ $${costBudgetPerMTok}/Mtok`
+		}
+	}
+
+	// 2) Context-window guard: reject models that can't hold the estimated
+	//    input + output headroom.
+	const tokens =
+		estimatedInputTokens ?? estimateTokens(messages as Array<{ content: string | unknown }>)
+	const needContext = tokens + outputHeadroomTokens
+	if (needContext > 0) {
+		const contextFiltered = candidates.filter((m) => {
+			const ctx = getContextLength(m)
+			return ctx === undefined ? true : ctx >= needContext
+		})
+		if (contextFiltered.length < candidates.length) {
+			reason = `${reason}, filtered to ≥${Math.ceil(needContext / 1000)}k context`
+			candidates = contextFiltered
+		}
+	}
+
+	// 2b) Per-request cost cap (smart-router v4). Estimates list-price cost
+	//     for input + reserved output headroom and drops any candidate above
+	//     the cap. Unpriced models are kept (calculateCost returns 0) so we
+	//     don't accidentally exclude self-hosted Ollama / new entries that
+	//     don't yet have a pricing row.
+	if (maxCostPerRequestCents !== undefined) {
+		const before = candidates.length
+		candidates = candidates.filter((m) => {
+			const usd = calculateCost(m, tokens, outputHeadroomTokens)
+			return Math.ceil(usd * 100) <= maxCostPerRequestCents
+		})
+		if (candidates.length < before) {
+			reason = `${reason}, filtered to ≤ ${maxCostPerRequestCents}¢/request`
+		}
+	}
+
+	// 3) preferCheaper / auto: sort the top-3 of the filtered ranking by cost
+	//    ascending. Keeps only strong models but picks the cheapest among them.
+	if (effectivePreferCheaper && candidates.length > 1) {
+		const top3 = candidates.slice(0, 3)
+		const rest = candidates.slice(3)
+		top3.sort((a, b) => avgCostPerMTok(a) - avgCostPerMTok(b))
+		candidates = [...top3, ...rest]
+	}
+
+	// 4) First candidate whose provider the user has access to (after pin /
+	//    exclude prefs) wins.
+	for (const modelString of candidates) {
 		const route = resolveRoute(modelString)
-		if (route && availableProviders.includes(route.provider)) {
+		if (route && effectiveProviders.includes(route.provider)) {
 			return {
 				...route,
 				reason: `${reason} → ${modelString}`,
@@ -159,20 +297,35 @@ export function autoRoute(options: AutoRouteOptions): AutoRouteResult | null {
 		}
 	}
 
-	// Absolute fallback: try any model from any available provider
-	for (const provider of availableProviders) {
+	// 5) Absolute fallback: any model from any effective provider that still
+	//    satisfies the cost budget AND the context-fit constraint AND the
+	//    per-request cost cap. Returning a model that exceeds any of these
+	//    would defeat the caller's intent.
+	for (const provider of effectiveProviders) {
 		const fallbacks: Record<string, string> = {
 			openai: 'openai/gpt-5',
 			anthropic: 'anthropic/claude-sonnet-4-6',
 			google: 'google/gemini-2.5-flash-preview-04-17',
 			mistral: 'mistral/mistral-large-latest',
 			xai: 'xai/grok-4.20',
+			groq: 'groq/llama-3.3-70b-versatile',
+			together: 'together/llama-3.3-70b',
+			cloudflare: 'cloudflare/llama-3.1-8b',
+			cohere: 'cohere/command-r-plus-08-2024',
+			ollama: 'ollama/llama3.1',
+			azure: 'azure/gpt-4o',
 		}
 		const model = fallbacks[provider]
-		if (model) {
-			const route = resolveRoute(model)
-			if (route) return { ...route, reason: `Fallback to ${provider}` }
+		if (!model) continue
+		if (costBudgetPerMTok !== undefined && avgCostPerMTok(model) > costBudgetPerMTok) continue
+		const ctx = getContextLength(model)
+		if (ctx !== undefined && ctx < needContext) continue
+		if (maxCostPerRequestCents !== undefined) {
+			const usd = calculateCost(model, tokens, outputHeadroomTokens)
+			if (Math.ceil(usd * 100) > maxCostPerRequestCents) continue
 		}
+		const route = resolveRoute(model)
+		if (route) return { ...route, reason: `Fallback to ${provider}` }
 	}
 
 	return null

@@ -1,6 +1,7 @@
 import {
 	AuthenticationError,
 	EdgeRouteError,
+	InsufficientCreditsError,
 	ModelNotFoundError,
 	ProviderError,
 	ProviderKeyMissingError,
@@ -46,5 +47,13 @@ describe('Errors', () => {
 		const err = new ProviderKeyMissingError('anthropic')
 		expect(err.message).toContain('anthropic')
 		expect(err.status).toBe(400)
+	})
+
+	it('InsufficientCreditsError returns 402 with top_up_url', () => {
+		const err = new InsufficientCreditsError()
+		expect(err.status).toBe(402)
+		expect(err.code).toBe('insufficient_credits')
+		const body = err.toJSON() as { error: { top_up_url?: string } }
+		expect(body.error.top_up_url).toContain('/billing')
 	})
 })
