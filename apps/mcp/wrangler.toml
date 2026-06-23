@@ -1,0 +1,16 @@
+name = "edgerouteai-mcp"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "development"
+API_BASE_URL = "https://api.edgerouteai.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "edgerouteai-db"
+database_id = "5e45ce25-8ee8-4f0b-9a27-e51b89473ccd"
+migrations_dir = "../../packages/db/src/migrations"
+
+# Deployed at https://mcp.edgerouteai.com (route set in Cloudflare dashboard).

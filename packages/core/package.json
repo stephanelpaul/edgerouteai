@@ -14,6 +14,8 @@
 		"./adapters/registry": "./src/adapters/registry.ts",
 		"./router/resolver": "./src/router/resolver.ts",
 		"./router/fallback": "./src/router/fallback.ts",
+		"./router/health": "./src/router/health.ts",
+		"./router/auto": "./src/router/auto.ts",
 		"./streaming/proxy": "./src/streaming/proxy.ts",
 		"./streaming/tee": "./src/streaming/tee.ts"
 	},
