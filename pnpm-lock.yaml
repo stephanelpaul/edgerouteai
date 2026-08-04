@@ -42,8 +42,8 @@ importers:
         specifier: ^0.38.0
         version: 0.38.4(@cloudflare/workers-types@4.20260402.1)(@opentelemetry/api@1.9.1)(@types/react@19.2.14)(kysely@0.28.15)(react@19.2.4)
       hono:
-        specifier: ^4.12.25
-        version: 4.12.25
+        specifier: ^4.12.34
+        version: 4.12.34
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20250327.0
@@ -67,8 +67,8 @@ importers:
         specifier: ^0.38.0
         version: 0.38.4(@cloudflare/workers-types@4.20260402.1)(@opentelemetry/api@1.9.1)(@types/react@19.2.14)(kysely@0.28.15)(react@19.2.4)
       hono:
-        specifier: ^4.7.0
-        version: 4.12.10
+        specifier: ^4.12.34
+        version: 4.12.34
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20250327.0
@@ -95,8 +95,8 @@ importers:
         specifier: ^0.38.0
         version: 0.38.4(@cloudflare/workers-types@4.20260402.1)(@opentelemetry/api@1.9.1)(@types/react@19.2.14)(kysely@0.28.15)(react@19.2.4)
       hono:
-        specifier: ^4.7.0
-        version: 4.12.10
+        specifier: ^4.12.34
+        version: 4.12.34
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20250327.0
@@ -450,11 +450,11 @@ packages:
 
   '@esbuild-kit/core-utils@3.3.2':
     resolution: {integrity: sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ==}
-    deprecated: 'Merged into tsx: https://tsx.is'
+    deprecated: 'Merged into tsx: https://tsx.hirok.io'
 
   '@esbuild-kit/esm-loader@2.6.5':
     resolution: {integrity: sha512-FxEMIkJKnodyA1OaCUoEvbYRkoZlLZ4d/eXFu9Fh8CbBBgP5EmZxrfTRyN0qpXZ4vOvqnE5YdRdcrmUUXuU+dA==}
-    deprecated: 'Merged into tsx: https://tsx.is'
+    deprecated: 'Merged into tsx: https://tsx.hirok.io'
 
   '@esbuild/aix-ppc64@0.19.12':
     resolution: {integrity: sha512-bmoCYyWdEL3wDQIVbcyzRyeKLgk2WtWLTWz1ZIAZF/EGbNOwSA6ew3PftJ1PqMiOOGu0OyFMzG53L0zqIpPeNA==}
@@ -2176,8 +2176,8 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  hono@4.12.25:
-    resolution: {integrity: sha512-2NFaIyNVgJmBs/ecmtGzlmluTFs5cHEWGTdu0t1HBwYzoGXOL5nUQBRMXsXWla5i4KkG//QMzVP88m1+I3fdAQ==}
+  hono@4.12.34:
+    resolution: {integrity: sha512-GqXJqY/xJkJmuloTrnV1ZEXG3fqte+VjkUqoRNZXcrUidiUOP4fMSIHHY4tsqZBK++kVyWmt/AAfSUuy57/eSA==}
     engines: {node: '>=16.9.0'}
 
   internmap@2.0.3:
@@ -4094,7 +4094,7 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  hono@4.12.25: {}
+  hono@4.12.34: {}
 
   internmap@2.0.3: {}
 
